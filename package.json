@@ -1,0 +1,22 @@
+{
+  "name": "eva-http",
+  "version": "1.0.0",
+  "description": "A lightweight HTTP framework for Bun, built from scratch",
+  "type": "module",
+  "main": "src/eva.ts",
+  "scripts": {
+    "dev": "bun run server.ts",
+    "build": "bun build src/eva.ts --target=browser --outdir=dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  },
+  "keywords": ["http", "framework", "bun", "server", "router", "middleware"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Albebu/Eva.git"
+  }
+}
