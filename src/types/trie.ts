@@ -7,6 +7,7 @@ export interface TrieNode {
     name: string;
     node: TrieNode;
   };
+  wildcard?: TrieNode;
   children: Record<string, TrieNode>;
   middlewares?: EvaMiddleware[];
 }

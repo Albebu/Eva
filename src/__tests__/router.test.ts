@@ -115,6 +115,81 @@ describe('Router', () => {
     });
   });
 
+  describe('match - wildcard routes', () => {
+    it('should capture a route that falls in wildcard', () => {
+      const handler = makeHandler();
+      router.addRoute('GET', '/users/*', handler);
+      const match = router.match('GET', '/users/a');
+
+      expect(match?.handler).toBe(handler);
+    });
+    it('should match a deep route with the wildcard', () => {
+      const handler = makeHandler();
+      router.addRoute('GET', '/users/*', handler);
+      const match = router.match('GET', '/users/a/b/c');
+
+      expect(match?.handler).toBe(handler);
+    });
+
+    it('captures the rest of the path under params["*"]', () => {
+      router.addRoute('GET', '/users/*', makeHandler());
+
+      const match = router.match('GET', '/users/a/b/c');
+
+      expect(match?.params).toEqual({ '*': 'a/b/c' });
+    });
+
+    it('static route wins over wildcard at the same position', () => {
+      const staticHandler = makeHandler();
+      const wildcardHandler = makeHandler();
+      router.addRoute('GET', '/users/me', staticHandler);
+      router.addRoute('GET', '/users/*', wildcardHandler);
+
+      expect(router.match('GET', '/users/me')?.handler).toBe(staticHandler);
+      expect(router.match('GET', '/users/other')?.handler).toBe(
+        wildcardHandler,
+      );
+    });
+
+    it('param route wins over wildcard at the same position', () => {
+      const paramHandler = makeHandler();
+      const wildcardHandler = makeHandler();
+      router.addRoute('GET', '/users/:id', paramHandler);
+      router.addRoute('GET', '/users/*', wildcardHandler);
+
+      const match = router.match('GET', '/users/42');
+
+      expect(match?.handler).toBe(paramHandler);
+      expect(match?.params).toEqual({ id: '42' });
+    });
+
+    it('falls back to the wildcard when a more specific branch dead-ends', () => {
+      const staticHandler = makeHandler();
+      const wildcardHandler = makeHandler();
+      router.addRoute('GET', '/users/me', staticHandler);
+      router.addRoute('GET', '/users/*', wildcardHandler);
+
+      // walks into the static 'me' branch, dead-ends at 'settings',
+      // and must remember the wildcard seen at the 'users' level
+      const match = router.match('GET', '/users/me/settings');
+
+      expect(match?.handler).toBe(wildcardHandler);
+      expect(match?.params).toEqual({ '*': 'me/settings' });
+    });
+
+    it('throws when the wildcard is not the last segment', () => {
+      expect(() =>
+        router.addRoute('GET', '/users/*/posts', makeHandler()),
+      ).toThrow('wildcard must be the last segment');
+    });
+
+    it('does not match the bare prefix (wildcard requires a non-empty rest)', () => {
+      router.addRoute('GET', '/users/*', makeHandler());
+
+      expect(router.match('GET', '/users')).toBeNull();
+    });
+  });
+
   describe('match — path normalization', () => {
     test.each([
       ['/users/', 'trailing slash'],
