@@ -1,0 +1,229 @@
+{
+  "info": {
+    "name": "Eva HTTP Framework",
+    "description": "One request per Eva feature. Start the server with `bun run dev` and run the collection. Default base URL: http://localhost:9999 (collection variable `baseUrl`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9999",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Routing",
+      "item": [
+        {
+          "name": "Static route (JSON)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/"
+          },
+          "description": "Expects 200 {\"message\":\"Eva up and running\"}"
+        },
+        {
+          "name": "Text response + custom header",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          },
+          "description": "Expects 200 'ok' with X-Eva-Version header"
+        },
+        {
+          "name": "Route param (percent-decoded)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/echo/a%20b"
+          },
+          "description": "Expects {\"id\":\"a b\"} — %20 decoded before reaching the handler"
+        },
+        {
+          "name": "Query string",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/search?q=eva&page=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["search"],
+              "query": [
+                { "key": "q", "value": "eva" },
+                { "key": "page", "value": "2" }
+              ]
+            }
+          },
+          "description": "Expects {\"query\":{\"q\":\"eva\",\"page\":\"2\"}} — values are always strings"
+        },
+        {
+          "name": "Wildcard (rest capture)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/static/css/main.css"
+          },
+          "description": "Expects {\"file\":\"css/main.css\"} — the rest of the path lands in params['*']"
+        },
+        {
+          "name": "404 — unknown path",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/nope"
+          },
+          "description": "Expects 404 Not Found"
+        },
+        {
+          "name": "405 — wrong method (check Allow header)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/"
+          },
+          "description": "Expects 405 with Allow: GET — the path exists for other methods"
+        },
+        {
+          "name": "HEAD — automatic from GET",
+          "request": {
+            "method": "HEAD",
+            "url": "{{baseUrl}}/"
+          },
+          "description": "Expects 200 with empty body — Eva answers HEAD for any GET route"
+        }
+      ]
+    },
+    {
+      "name": "Body parsing",
+      "item": [
+        {
+          "name": "POST JSON body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"widget\"\n}"
+            },
+            "url": "{{baseUrl}}/items"
+          },
+          "description": "Expects 201 {\"created\":{\"name\":\"widget\"}} — read with await ctx.json()"
+        }
+      ]
+    },
+    {
+      "name": "Errors",
+      "item": [
+        {
+          "name": "Thrown EvaError -> 404",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/999"
+          },
+          "description": "Expects 404 {\"error\":\"User 999 does not exist\"} — EvaError subclasses map to their status automatically"
+        },
+        {
+          "name": "Unknown error -> onError 500",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/boom"
+          },
+          "description": "Expects 500 {\"error\":\"Something went wrong\"} — plain errors go through the registered onError handler"
+        }
+      ]
+    },
+    {
+      "name": "Middleware",
+      "item": [
+        {
+          "name": "Route middleware — 401 without auth",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin"
+          },
+          "description": "Expects 401 — the requireAuth route middleware throws EvaUnauthorizedError"
+        },
+        {
+          "name": "Route middleware — 200 with auth",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "secret"
+              }
+            ],
+            "url": "{{baseUrl}}/admin"
+          },
+          "description": "Expects 200 'welcome, admin'"
+        }
+      ]
+    },
+    {
+      "name": "Responses",
+      "item": [
+        {
+          "name": "Redirect 301",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/old-path"
+          },
+          "description": "Expects 301 with Location: / (disable 'Automatically follow redirects' in Postman settings to see it)"
+        }
+      ]
+    },
+    {
+      "name": "Route builder",
+      "item": [
+        {
+          "name": "GET via builder",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tasks"
+          },
+          "description": "Expects {\"tasks\":[]} — registered with app.route('/tasks').get(...)"
+        },
+        {
+          "name": "POST via builder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"learn tries\"\n}"
+            },
+            "url": "{{baseUrl}}/tasks"
+          },
+          "description": "Expects 201 {\"created\":{\"title\":\"learn tries\"}}"
+        }
+      ]
+    },
+    {
+      "name": "Composition (toParent)",
+      "item": [
+        {
+          "name": "Child routes under prefix",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products"
+          },
+          "description": "Expects {\"data\":[\"widget\",\"gadget\"]} — products instance mounted at /api/v1"
+        },
+        {
+          "name": "Child route with param",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/products/7"
+          },
+          "description": "Expects {\"data\":{\"id\":\"7\"}} — params survive mounting"
+        }
+      ]
+    }
+  ]
+}

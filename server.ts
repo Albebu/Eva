@@ -1,25 +1,121 @@
 /**
- * Archivo de ejemplo para mostrar como funciona EVA, lo uso también para testear que
- * el framework funciona correctamente en las fases tempranas de desarrollo.
+ * Eva showcase — one example of every feature.
+ * Run with `bun run dev` and try it with the Postman collection (eva.postman_collection.json).
  */
 
 import { Eva } from './src/eva';
+import { cors } from './src/cors';
+import { EvaNotFoundError, EvaUnauthorizedError } from './src/errors';
+import type { EvaMiddleware } from './src/types';
 
-const users = new Eva();
+const app = new Eva();
 
-users.get('/users', (ctx) => {
-  return ctx.toJson({ data: ['alice', 'bob', 'carol'] });
+// | Global middleware — runs on every request, in registration order |
+// Each middleware receives (ctx, next) and must `await next()` to continue.
+
+app.use(async (ctx, next) => {
+  const start = performance.now();
+  await next();
+  const ms = (performance.now() - start).toFixed(1);
+  console.log(`${ctx.req.method} ${ctx.path} (${ms}ms)`);
 });
 
-users.get('/users/:id', (ctx) => {
-  return ctx.toJson({ data: { id: ctx.params.id, name: 'user' } });
+// | CORS — built-in middleware. Exact-match origins (string, array or '*') |
+
+app.use(cors({ origin: '*' }));
+
+// | Error boundary — handles anything that is NOT an EvaError |
+// EvaError subclasses skip this: they map to their own status automatically.
+
+app.onError((error, _ctx) => {
+  console.error('Unexpected error:', error);
+  return new Response(JSON.stringify({ error: 'Something went wrong' }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+  });
 });
 
-users.post('/users', async (ctx) => {
+// | Static route + JSON response |
+
+app.get('/', (ctx) => {
+  return ctx.toJson({ message: 'Eva up and running' });
+});
+
+// | Text response + custom header |
+
+app.get('/health', (ctx) => {
+  ctx.setHeader('X-Eva-Version', '0.1');
+  return ctx.toText('ok');
+});
+
+// | Route params (:id) — percent-decoded automatically |
+
+app.get('/echo/:id', (ctx) => {
+  return ctx.toJson({ id: ctx.params.id });
+});
+
+// | Query string — available in ctx.query (always strings) |
+
+app.get('/search', (ctx) => {
+  return ctx.toJson({ query: ctx.query });
+});
+
+// | Wildcard — consumes the rest of the path into params['*'] |
+
+app.get('/static/*', (ctx) => {
+  return ctx.toJson({ file: ctx.params['*'] });
+});
+
+// | JSON body — await ctx.json() (cached: safe to call twice) |
+
+app.post('/items', async (ctx) => {
   const body = await ctx.json();
-  console.log(`POST body:`, body);
   return ctx.toJson({ created: body }, { status: 201 });
 });
+
+// | Throwing errors — EvaError subclasses become HTTP responses |
+
+app.get('/users/:id', (ctx) => {
+  if (ctx.params.id === '999') {
+    throw new EvaNotFoundError(`User ${ctx.params.id} does not exist`);
+  }
+  return ctx.toJson({ id: ctx.params.id, name: 'user' });
+});
+
+app.get('/boom', () => {
+  throw new Error('unexpected failure');
+});
+
+// | Route-level middleware — array between the path and the handler |
+
+const requireAuth: EvaMiddleware = async (ctx, next) => {
+  if (ctx.getHeader('Authorization') !== 'secret') {
+    throw new EvaUnauthorizedError();
+  }
+  await next();
+};
+
+app.get('/admin', [requireAuth], (ctx) => {
+  return ctx.toText('welcome, admin');
+});
+
+// | Redirect |
+
+app.get('/old-path', (ctx) => {
+  return ctx.redirect('/', 301);
+});
+
+// | Route builder — group several methods on one path |
+
+app
+  .route('/tasks')
+  .get((ctx) => ctx.toJson({ tasks: [] }))
+  .post(async (ctx) =>
+    ctx.toJson({ created: await ctx.json() }, { status: 201 }),
+  );
+
+// | Composition — mount a child instance under a prefix |
+// Known limitation: route-level middlewares are not copied yet (see roadmap).
 
 const products = new Eva();
 
@@ -28,24 +124,17 @@ products.get('/products', (ctx) => {
 });
 
 products.get('/products/:id', (ctx) => {
-  return ctx.toJson({ data: { id: ctx.params.id, name: 'product' } });
+  return ctx.toJson({ data: { id: ctx.params.id } });
 });
 
-const app = new Eva();
+products.toParent(app, '/api/v1');
 
-app.use((ctx, next) => {
-  console.log(`[${new Date().toISOString()}] ${ctx.req.method} ${ctx.path}`);
-  return next();
-});
+// | Also built in, with no code needed: |
+//   HEAD -> any GET route answers HEAD with empty body
+//   405  -> wrong method on a known path, with Allow header
+//   404  -> unknown paths
 
-users.toParent(app, '/api/v1');
+// | Start — serve() returns the Bun server (port, stop(), ...) |
 
-products.toParent(app, '/api/v2');
-
-app.get('/', (ctx) => {
-  return ctx.toJson({ message: 'Eva funcionando' });
-});
-
-app.serve(undefined, () => {
-  console.log('Server is running on port 9999');
-});
+const server = app.serve();
+console.log(`Eva listening on http://localhost:${server.port}`);
