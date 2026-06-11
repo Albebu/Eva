@@ -76,6 +76,11 @@ export class Router {
       }
     }
 
+    // Fallar ruidoso en registro: pisar un handler en silencio esconde bugs.
+    if (node.handler) {
+      throw new Error(`Route ${route} is already registered for ${method}`);
+    }
+
     node.handler = callback as Handler;
     if (middlewares.length > 0) {
       node.middlewares = middlewares;

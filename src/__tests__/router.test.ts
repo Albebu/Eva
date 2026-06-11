@@ -25,6 +25,14 @@ describe('Router', () => {
         router.addRoute('GET', '/users/:userId/posts', makeHandler()),
       ).toThrow(EvaConflictError);
     });
+
+    it('throws when registering a route that already has a handler', () => {
+      router.addRoute('GET', '/users', makeHandler());
+
+      expect(() => router.addRoute('GET', '/users', makeHandler())).toThrow(
+        'already registered',
+      );
+    });
   });
 
   describe('match — static routes', () => {
