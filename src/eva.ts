@@ -1,4 +1,4 @@
-import { EvaError } from './errors';
+import { EvaError, EvaInternalServerError } from './errors';
 import { EvaContext } from './eva-context';
 import { Router } from './router';
 import { methods } from './shared';
@@ -268,10 +268,11 @@ export class Eva {
         }
 
         if (availableMethods.length > 0) {
-          return new Response(null, {
+          return new Response('Not Allowed', {
             status: 405,
             headers: {
               Allow: availableMethods.join(', '),
+              'Content-Type': 'text/plain',
             },
           });
         }
@@ -309,7 +310,11 @@ export class Eva {
         });
       }
 
-      return response!;
+      if (response === undefined) {
+        throw new EvaInternalServerError();
+      }
+
+      return response;
     } catch (error) {
       if (error instanceof EvaError) {
         return new Response(JSON.stringify({ error: error.message }), {
@@ -320,7 +325,6 @@ export class Eva {
       if (this._errorHandler) {
         return this._errorHandler(error, ctx);
       }
-      console.error(error);
       return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
