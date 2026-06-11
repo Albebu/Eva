@@ -3,7 +3,7 @@ import type { EvaRouteOptions } from './types';
 export class Context<T extends EvaRouteOptions = {}> {
   req: Request;
 
-  private _rawText: string | undefined;
+  private _rawText: string | undefined = undefined;
   private _body: unknown = undefined;
   private _bodyParsed = false;
 
