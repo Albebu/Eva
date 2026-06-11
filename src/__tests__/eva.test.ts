@@ -75,6 +75,15 @@ describe('Eva.handle', () => {
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ id: 'a b' });
     });
+
+    it('omits absent optional params after the full pipeline', async () => {
+      app.get('/posts/:year/:month?', (ctx) => ctx.toJson(ctx.params));
+
+      const res = await app.handle(req('/posts/2026'));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ year: '2026' });
+    });
     it('captures the path consumed by the wildcard in ctx.params', async () => {
       app.get('/users/*', (ctx) => ctx.toJson(ctx.params));
 

@@ -36,6 +36,32 @@ export class Router {
     }
 
     const segments = route.split('/').filter(Boolean);
+
+    // Optional params (:x?) son azúcar sintáctico: se desazucaran en una
+    // variante por cada prefijo válido (/a/:b?/:c? -> /a, /a/:b, /a/:b/:c) y
+    // cada variante se registra por el camino normal, heredando todas las
+    // validaciones (conflictos de nombre, duplicados...).
+    const isOptional = (s: string) => s.startsWith(':') && s.endsWith('?');
+    const firstOptional = segments.findIndex(isOptional);
+
+    if (firstOptional !== -1) {
+      if (!segments.slice(firstOptional).every(isOptional)) {
+        throw new Error(
+          `Invalid route ${route}: optional params must be trailing`,
+        );
+      }
+      for (let end = firstOptional; end <= segments.length; end++) {
+        const variant =
+          '/' +
+          segments
+            .slice(0, end)
+            .map((s) => (isOptional(s) ? s.slice(0, -1) : s))
+            .join('/');
+        this.addRoute(method, variant, callback, ...middlewares);
+      }
+      return;
+    }
+
     let node = this.routes[method];
 
     for (const [i, segment] of segments.entries()) {

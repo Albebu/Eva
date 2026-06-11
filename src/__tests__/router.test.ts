@@ -123,6 +123,68 @@ describe('Router', () => {
     });
   });
 
+  describe('match — optional params', () => {
+    it('routes both variants to the same handler', () => {
+      const handler = makeHandler();
+      router.addRoute('GET', '/posts/:year/:month?', handler);
+
+      const withParam = router.match('GET', '/posts/2026/06');
+      const withoutParam = router.match('GET', '/posts/2026');
+
+      expect(withParam?.handler).toBe(handler);
+      expect(withParam?.params).toEqual({ year: '2026', month: '06' });
+      expect(withoutParam?.handler).toBe(handler);
+    });
+
+    it('omits the absent optional param from params', () => {
+      router.addRoute('GET', '/posts/:year/:month?', makeHandler());
+
+      const match = router.match('GET', '/posts/2026');
+
+      expect(match?.params).toEqual({ year: '2026' });
+      // toEqual ignores undefined values, so pin the decision explicitly:
+      // an absent optional means the key does NOT exist in params
+      expect(match?.params).not.toHaveProperty('month');
+    });
+
+    test.each([
+      ['/files', {}],
+      ['/files/a', { a: 'a' }],
+      ['/files/a/b', { a: 'a', b: 'b' }],
+    ])('chained optional params match %s', (path, expectedParams) => {
+      const handler = makeHandler();
+      router.addRoute('GET', '/files/:a?/:b?', handler);
+
+      const match = router.match('GET', path);
+
+      expect(match?.handler).toBe(handler);
+      expect(match?.params).toEqual(expectedParams);
+    });
+
+    it('throws when an optional param is not in tail position', () => {
+      expect(() =>
+        router.addRoute('GET', '/users/:a?/me', makeHandler()),
+      ).toThrow('optional params must be trailing');
+    });
+
+    it('desugared variants respect param-name conflict detection', () => {
+      router.addRoute('GET', '/users/:id', makeHandler());
+
+      expect(() =>
+        router.addRoute('GET', '/users/:userId?', makeHandler()),
+      ).toThrow(EvaConflictError);
+    });
+
+    it('throws when a desugared variant collides with an existing route', () => {
+      router.addRoute('GET', '/posts/:year', makeHandler());
+
+      // desugaring /posts/:year/:month? produces /posts/:year, which is taken
+      expect(() =>
+        router.addRoute('GET', '/posts/:year/:month?', makeHandler()),
+      ).toThrow('already registered');
+    });
+  });
+
   describe('match - wildcard routes', () => {
     it('should capture a route that falls in wildcard', () => {
       const handler = makeHandler();
