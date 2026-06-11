@@ -136,18 +136,18 @@ The order matters: phase 0 makes the framework testable, phase 1 locks current b
 - [x] Characterization tests for what already works: static routes, `:params`, query parsing, 404, 405 + `Allow` header, automatic HEAD, middleware order (global → route → handler)
 - [ ] **Design fix**: allow middleware to short-circuit with a response (`EvaMiddleware` returning `Response | void`, or a response builder on the context). Today a middleware that doesn't call `next()` leaves `response` as `undefined` and `serve()` does `return response!` — the CORS preflight path hits exactly this
 - [ ] **Bug**: invalid JSON body → `JSON.parse` in `src/context.ts` throws an unhandled `SyntaxError` and the client gets a 500. Expected: 400 Bad Request
-- [ ] **Bug**: CORS origin check in `src/cors.ts` uses `.includes()`, which is substring matching when `origin` is a string — `"https://example.com".includes("https://example.co")` is `true`, so a malicious origin passes. Handle the string case and the array case explicitly
+- [x] **Bug**: CORS origin check in `src/cors.ts` uses `.includes()`, which is substring matching when `origin` is a string — `"https://example.com".includes("https://example.co")` is `true`, so a malicious origin passes. Handle the string case and the array case explicitly
 - [ ] **Bug**: CORS preflight (OPTIONS) is only short-circuited in the `"*"` branch; specific-origin preflights fall through. Decide the preflight behavior once and test it for both branches
 - [ ] **Bug**: `toParent()` copies handlers but drops route-level middlewares (`addRoute` is called without `node.middlewares`)
-- [ ] **Bug**: registering `/users/:id` and then `/users/:userId/posts` silently reuses the first param name (`router.ts` keeps the existing `node.param`). Throw on conflicting param names at registration time
-- [ ] Guard the `return response!` path: if a handler/middleware chain produces no response, return a deliberate 500 (or throw a descriptive error), never `undefined`
+- [x] **Bug**: registering `/users/:id` and then `/users/:userId/posts` silently reuses the first param name (`router.ts` keeps the existing `node.param`). Throw on conflicting param names at registration time
+- [x] Guard the `return response!` path: if a handler/middleware chain produces no response, return a deliberate 500 (or throw a descriptive error), never `undefined`
 
 ### Phase 2 — Router robustness (edge cases)
 
 - [ ] Trailing slash policy: `/users` vs `/users/` — pick a behavior, document it, test it
-- [ ] Empty segments (`//users`), URL-encoded params (`/users/a%20b` should decode to `a b`)
-- [ ] Static-over-param priority: `/users/me` must win over `/users/:id`, including backtracking when a static prefix dead-ends
-- [ ] Wildcard routes (`/static/*`)
+- [x] Empty segments (`//users`), URL-encoded params (`/users/a%20b` should decode to `a b`)
+- [x] Static-over-param priority: `/users/me` must win over `/users/:id`, including backtracking when a static prefix dead-ends
+- [x] Wildcard routes (`/static/*`)
 - [ ] Route-level middleware scope: today middleware registered on `/users` also runs for `/users/:id` because `match()` collects middlewares from intermediate nodes — decide if that's a feature (Express-style mounting) or a bug, then test the decision
 - [ ] Include OPTIONS/HEAD in the 405 `Allow` calculation
 
