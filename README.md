@@ -14,8 +14,8 @@ No external dependencies. Pure Bun APIs.
 ## Quick Start
 
 ```typescript
-import { Eva } from "./src/eva";
-import { cors } from "./src/cors";
+import { Eva } from './src/eva';
+import { cors } from './src/cors';
 
 const eva = new Eva();
 
@@ -26,24 +26,24 @@ eva.use(async (ctx, next) => {
 });
 
 // CORS
-eva.use(cors({ origin: "*" }));
+eva.use(cors({ origin: '*' }));
 
 // Routes
-eva.get("/", () => {
-  return new Response("Hello from Eva!");
+eva.get('/', () => {
+  return new Response('Hello from Eva!');
 });
 
-eva.get("/api/users/:id", (ctx) => {
-  return ctx.json({ id: ctx.params.id, name: "Alex" });
+eva.get('/api/users/:id', (ctx) => {
+  return ctx.json({ id: ctx.params.id, name: 'Alex' });
 });
 
-eva.post("/api/users", async (ctx) => {
+eva.post('/api/users', async (ctx) => {
   const body = await ctx.req.json();
   return ctx.json({ created: true, data: body }, { status: 201 });
 });
 
 // Listen
-eva.serve()
+eva.serve();
 ```
 
 ## Features
@@ -61,29 +61,29 @@ eva.serve()
 ### Eva
 
 ```typescript
-const eva = new Eva()
+const eva = new Eva();
 
-eva.get(route, handler)     // GET
-eva.post(route, handler)    // POST
-eva.put(route, handler)     // PUT
-eva.patch(route, handler)   // PATCH
-eva.delete(route, handler)  // DELETE
-eva.options(route, handler) // OPTIONS
-eva.head(route, handler)    // HEAD
+eva.get(route, handler); // GET
+eva.post(route, handler); // POST
+eva.put(route, handler); // PUT
+eva.patch(route, handler); // PATCH
+eva.delete(route, handler); // DELETE
+eva.options(route, handler); // OPTIONS
+eva.head(route, handler); // HEAD
 
-eva.use(middleware)          // global middleware
-eva.listen(port, callback)   // start server
+eva.use(middleware); // global middleware
+eva.listen(port, callback); // start server
 ```
 
 ### Context
 
 ```typescript
-ctx.json(data, options)     // JSON response
-ctx.text(text, options)      // text response
-ctx.getHeader(name)          // get request header
-ctx.setHeader(name, value)   // set response header
-ctx.params                   // route parameters
-ctx.req                       // original Request
+ctx.json(data, options); // JSON response
+ctx.text(text, options); // text response
+ctx.getHeader(name); // get request header
+ctx.setHeader(name, value); // set response header
+ctx.params; // route parameters
+ctx.req; // original Request
 ```
 
 ### Middleware
@@ -91,8 +91,8 @@ ctx.req                       // original Request
 ```typescript
 type EvaMiddleware = (
   ctx: EvaContext,
-  next: () => Promise<void>
-) => Promise<void>
+  next: () => Promise<void>,
+) => Promise<void>;
 ```
 
 ## Architecture
@@ -110,6 +110,66 @@ Handler
   ↓
 Response
 ```
+
+## Testing
+
+```bash
+bun test            # run the suite
+bun test --watch    # re-run on change
+bun test --coverage # coverage report
+```
+
+Tests live next to the code as `*.test.ts` and use `bun:test` (Jest-compatible API, zero config).
+
+## Roadmap
+
+The order matters: phase 0 makes the framework testable, phase 1 locks current behavior in tests and fixes known bugs against those tests, and only then do new features land — always test-first.
+
+### Phase 0 — Testability foundation
+
+- [x] Extract the `fetch` closure in `Eva.serve()` into a public `handle(req: Request): Promise<Response>` method, so the whole framework can be tested with `app.handle(new Request(...))` without binding a port (this is how Hono's `app.fetch` and Elysia's `app.handle` work)
+- [x] Make `serve()` use `handle()` internally and return the `Bun.serve` server instance instead of `void` (needed to call `server.stop()` in e2e tests)
+- [x] Set up the first `*.test.ts` file and a `bun test` script in `package.json`
+
+### Phase 1 — Lock behavior + fix known bugs (test-first: write the failing test, then fix)
+
+- [x] Characterization tests for what already works: static routes, `:params`, query parsing, 404, 405 + `Allow` header, automatic HEAD, middleware order (global → route → handler)
+- [ ] **Design fix**: allow middleware to short-circuit with a response (`EvaMiddleware` returning `Response | void`, or a response builder on the context). Today a middleware that doesn't call `next()` leaves `response` as `undefined` and `serve()` does `return response!` — the CORS preflight path hits exactly this
+- [ ] **Bug**: invalid JSON body → `JSON.parse` in `src/context.ts` throws an unhandled `SyntaxError` and the client gets a 500. Expected: 400 Bad Request
+- [ ] **Bug**: CORS origin check in `src/cors.ts` uses `.includes()`, which is substring matching when `origin` is a string — `"https://example.com".includes("https://example.co")` is `true`, so a malicious origin passes. Handle the string case and the array case explicitly
+- [ ] **Bug**: CORS preflight (OPTIONS) is only short-circuited in the `"*"` branch; specific-origin preflights fall through. Decide the preflight behavior once and test it for both branches
+- [ ] **Bug**: `toParent()` copies handlers but drops route-level middlewares (`addRoute` is called without `node.middlewares`)
+- [ ] **Bug**: registering `/users/:id` and then `/users/:userId/posts` silently reuses the first param name (`router.ts` keeps the existing `node.param`). Throw on conflicting param names at registration time
+- [ ] Guard the `return response!` path: if a handler/middleware chain produces no response, return a deliberate 500 (or throw a descriptive error), never `undefined`
+
+### Phase 2 — Router robustness (edge cases)
+
+- [ ] Trailing slash policy: `/users` vs `/users/` — pick a behavior, document it, test it
+- [ ] Empty segments (`//users`), URL-encoded params (`/users/a%20b` should decode to `a b`)
+- [ ] Static-over-param priority: `/users/me` must win over `/users/:id`, including backtracking when a static prefix dead-ends
+- [ ] Wildcard routes (`/static/*`)
+- [ ] Route-level middleware scope: today middleware registered on `/users` also runs for `/users/:id` because `match()` collects middlewares from intermediate nodes — decide if that's a feature (Express-style mounting) or a bug, then test the decision
+- [ ] Include OPTIONS/HEAD in the 405 `Allow` calculation
+
+### Phase 3 — Missing core features
+
+- [ ] Content-type-aware body parsing: `application/x-www-form-urlencoded` and `multipart/form-data`, plus a body size limit
+- [ ] Cookies: parse on request, set on response (needed for any real auth)
+- [ ] Full CORS options: `allowedHeaders`, `credentials`, `maxAge`, `exposeHeaders`, per-config methods
+- [ ] Consolidate the route API: `get/post/...` overloads vs `route().getWith()` builder — one obvious way to do it
+
+### Phase 4 — DX and advanced TypeScript (the differentiators)
+
+- [ ] Infer param types from the path string with template literal types: `eva.get("/users/:id/posts/:postId", ...)` should type `ctx.params` as `{ id: string; postId: string }` without manual generics (this is the Hono/Elysia trick)
+- [ ] Schema validation hook for body/query/params (bring-your-own validator, e.g. Standard Schema)
+- [ ] Resolve the `toParent()` API doubt: switch to Express-style composition `parent.mount(prefix, child)` (see the comment in `src/eva.ts`)
+
+### Phase 5 — Ship it
+
+- [ ] GitHub Actions: `bun test` + typecheck on every push
+- [ ] Honest benchmarks vs Hono, Elysia and Express (and explain the results, especially the losses)
+- [ ] Dogfood: build and deploy one small real API with Eva
+- [ ] Publish to npm
 
 ## License
 
