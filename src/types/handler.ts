@@ -1,4 +1,4 @@
-import type { EvaContext } from "../eva-context";
+import type { EvaContext } from '../eva-context';
 
 export interface EvaRouteOptions {
   Query?: Record<string, string>;

@@ -1,17 +1,7 @@
-import { Context } from "./context";
-import { ResponseBuilder } from "./response";
-import type { EvaRouteOptions } from "./types";
+import { Context } from './context';
+import { ResponseBuilder } from './response';
+import type { EvaRouteOptions } from './types';
 
-/**
- * Contexto que ve el usuario en sus handlers.
- *
- * Combina:
- * - Lectura de request (params, query, headers, body) → de Context
- * - Construcción de response (toJson, toText, redirect, setHeader) → de ResponseBuilder
- *
- * El usuario solo toca esta clase. No necesita saber que internamente
- * están separadas.
- */
 export class EvaContext<T extends EvaRouteOptions = {}> {
   private _ctx: Context<T>;
   private _res: ResponseBuilder;
@@ -21,13 +11,11 @@ export class EvaContext<T extends EvaRouteOptions = {}> {
     this._res = new ResponseBuilder();
   }
 
-  // ─── Request: delegado a Context ───
-
   get req(): Request {
     return this._ctx.req;
   }
 
-  get params(): Context<T>["params"] {
+  get params(): Context<T>['params'] {
     return this._ctx.params;
   }
 
@@ -35,7 +23,7 @@ export class EvaContext<T extends EvaRouteOptions = {}> {
     this._ctx.params = value;
   }
 
-  get query(): Context<T>["query"] {
+  get query(): Context<T>['query'] {
     return this._ctx.query;
   }
 
@@ -58,8 +46,6 @@ export class EvaContext<T extends EvaRouteOptions = {}> {
   async text(): Promise<string> {
     return this._ctx.text();
   }
-
-  // ─── Response: delegado a ResponseBuilder ───
 
   setHeader(key: string, value: string): void {
     this._res.setHeader(key, value);

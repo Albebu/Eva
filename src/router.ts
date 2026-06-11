@@ -1,3 +1,4 @@
+import { EvaConflictError } from './errors';
 import type {
   EvaMiddleware,
   EvaRouteOptions,
@@ -5,9 +6,13 @@ import type {
   MatchResult,
   Method,
   TrieNode,
-} from "./types";
+} from './types';
+
+// | Router |
 
 export class Router {
+  // | Trie |
+
   private routes: Record<Method, TrieNode> = {
     GET: { children: {} },
     POST: { children: {} },
@@ -15,8 +20,10 @@ export class Router {
     PATCH: { children: {} },
     DELETE: { children: {} },
     OPTIONS: { children: {} },
-    HEAD: { children: {}}
+    HEAD: { children: {} },
   };
+
+  // | Add Route |
 
   addRoute<T extends EvaRouteOptions>(
     method: Method,
@@ -24,16 +31,23 @@ export class Router {
     callback: Handler<T>,
     ...middlewares: EvaMiddleware[]
   ): void {
-    if (!route.startsWith("/")) {
+    if (!route.startsWith('/')) {
       throw new Error(`Route ${route} must start with /`);
     }
 
-    const segments = route.split("/").filter(Boolean);
+    const segments = route.split('/').filter(Boolean);
     let node = this.routes[method];
 
     for (const segment of segments) {
-      if (segment.startsWith(":")) {
+      if (segment.startsWith(':')) {
         const name = segment.slice(1);
+        // Caso en el que ya hay un param y se quiere declarar en la misma ruta pero con un nombre
+        // diferente.
+        if (node.param && node.param.name !== name) {
+          throw new EvaConflictError(
+            `Two routes declare different param names at the same position: ${node.param.name} and ${name}`,
+          );
+        }
         if (!node.param) {
           node.param = { name, node: { children: {} } };
         }
@@ -52,16 +66,10 @@ export class Router {
     }
   }
 
-  /**
-   * Busca un handler que coincida con el method + path.
-   *
-   * Orden de búsqueda por segmento: estático > dinámico (:param) > wildcard (no implementado aún).
-   * Devuelve null si no encuentra match.
-   *
-   * Acumula middlewares de cada nodo del camino.
-   */
+  // | Match |
+
   match(method: Method, path: string): MatchResult | null {
-    const segments = path.split("/").filter(Boolean);
+    const segments = path.split('/').filter(Boolean);
     let node = this.routes[method];
     const params: Record<string, string> = {};
     const middlewares: EvaMiddleware[] = [];
@@ -87,6 +95,8 @@ export class Router {
 
     return { handler: node.handler, params, middlewares };
   }
+
+  // | Debug |
 
   getRoutes(): Record<Method, TrieNode> {
     return this.routes;

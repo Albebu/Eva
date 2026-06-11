@@ -1,15 +1,18 @@
-import type { EvaRouteOptions } from "./types";
+import type { EvaRouteOptions } from './types';
 
 export class Context<T extends EvaRouteOptions = {}> {
   req: Request;
+
+  private _rawText: string | undefined;
+  private _body: unknown = undefined;
+  private _bodyParsed = false;
+
   private _params: Record<string, string> = {};
   private _query: Record<string, string> = {};
-  private _rawBody: string | undefined;
 
   constructor(req: Request) {
     this.req = req;
   }
-
 
   get params(): ParamsType<T> {
     return this._params as ParamsType<T>;
@@ -19,7 +22,6 @@ export class Context<T extends EvaRouteOptions = {}> {
     this._params = value;
   }
 
-
   get query(): QueryType<T> {
     return this._query as QueryType<T>;
   }
@@ -27,7 +29,6 @@ export class Context<T extends EvaRouteOptions = {}> {
   set query(value: Record<string, string>) {
     this._query = value;
   }
-
 
   get path(): string {
     return new URL(this.req.url).pathname;
@@ -37,32 +38,31 @@ export class Context<T extends EvaRouteOptions = {}> {
     return this.req.headers.get(header);
   }
 
-
-  private async getRawBody(): Promise<string> {
-    if (this._rawBody === undefined) {
-      this._rawBody = await this.req.text();
-    }
-    return this._rawBody;
-  }
-
-  async json<B>(): Promise<B> {
-    const raw = await this.getRawBody();
-    return JSON.parse(raw);
-  }
-
   async text(): Promise<string> {
-    return await this.getRawBody();
+    if (this._rawText !== undefined) {
+      return this._rawText;
+    }
+    this._rawText = await this.req.text();
+    return this._rawText;
+  }
+
+  async json<B = unknown>(): Promise<B> {
+    if (this._bodyParsed) {
+      return this._body as B;
+    }
+    const raw = await this.text();
+    this._body = JSON.parse(raw);
+    this._bodyParsed = true;
+    return this._body as B;
   }
 }
 
-// ─── Tipos auxiliares de tipado genérico ───
-
 type QueryType<T extends EvaRouteOptions> =
-  T["Query"] extends Record<string, string>
-    ? T["Query"]
+  T['Query'] extends Record<string, string>
+    ? T['Query']
     : Record<string, string>;
 
 type ParamsType<T extends EvaRouteOptions> =
-  T["Params"] extends Record<string, string>
-    ? T["Params"]
+  T['Params'] extends Record<string, string>
+    ? T['Params']
     : Record<string, string>;
