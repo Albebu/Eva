@@ -11,6 +11,26 @@ import type {
   TrieNode,
 } from './types';
 
+/**
+ * Fluent registrar returned by `Eva.route()`. Object literals cannot carry
+ * overload signatures, so they live here and the implementation uses a
+ * union-args function typed against this interface.
+ */
+export interface RouteBuilder<T extends EvaRouteOptions = {}> {
+  get(handler: Handler<T>): RouteBuilder<T>;
+  get(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+  post(handler: Handler<T>): RouteBuilder<T>;
+  post(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+  put(handler: Handler<T>): RouteBuilder<T>;
+  put(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+  patch(handler: Handler<T>): RouteBuilder<T>;
+  patch(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+  delete(handler: Handler<T>): RouteBuilder<T>;
+  delete(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+  options(handler: Handler<T>): RouteBuilder<T>;
+  options(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+}
+
 export class Eva {
   private _router: Router;
   private _globalMiddleware: EvaMiddleware[] = [];
@@ -202,67 +222,42 @@ export class Eva {
   }
 
   /**
-   * Fluent builder to group several methods on one path:
+   * Fluent builder to group several methods on one path. Every verb mirrors
+   * the top-level API: an optional middlewares array before the handler.
    *
    * ```ts
-   * app.route('/tasks').get(listTasks).post(createTask);
+   * app
+   *   .route('/tasks')
+   *   .get(listTasks)
+   *   .post([requireAuth], createTask);
    * ```
-   *
-   * The `<verb>With(middlewares, handler)` variants register route-level
-   * middlewares for that method.
    */
-  route<T extends EvaRouteOptions>(route: string) {
-    const self = this;
-    return {
-      get(handler: Handler<T>) {
-        self._router.addRoute('GET', route, handler);
-        return this;
-      },
-      getWith(middlewares: EvaMiddleware[], handler: Handler<T>) {
-        self._router.addRoute('GET', route, handler, ...middlewares);
-        return this;
-      },
-      post(handler: Handler<T>) {
-        self._router.addRoute('POST', route, handler);
-        return this;
-      },
-      postWith(middlewares: EvaMiddleware[], handler: Handler<T>) {
-        self._router.addRoute('POST', route, handler, ...middlewares);
-        return this;
-      },
-      put(handler: Handler<T>) {
-        self._router.addRoute('PUT', route, handler);
-        return this;
-      },
-      putWith(middlewares: EvaMiddleware[], handler: Handler<T>) {
-        self._router.addRoute('PUT', route, handler, ...middlewares);
-        return this;
-      },
-      patch(handler: Handler<T>) {
-        self._router.addRoute('PATCH', route, handler);
-        return this;
-      },
-      patchWith(middlewares: EvaMiddleware[], handler: Handler<T>) {
-        self._router.addRoute('PATCH', route, handler, ...middlewares);
-        return this;
-      },
-      delete(handler: Handler<T>) {
-        self._router.addRoute('DELETE', route, handler);
-        return this;
-      },
-      deleteWith(middlewares: EvaMiddleware[], handler: Handler<T>) {
-        self._router.addRoute('DELETE', route, handler, ...middlewares);
-        return this;
-      },
-      options(handler: Handler<T>) {
-        self._router.addRoute('OPTIONS', route, handler);
-        return this;
-      },
-      optionsWith(middlewares: EvaMiddleware[], handler: Handler<T>) {
-        self._router.addRoute('OPTIONS', route, handler, ...middlewares);
-        return this;
-      },
+  route<T extends EvaRouteOptions>(route: string): RouteBuilder<T> {
+    const makeMethod = (method: Method) => {
+      return (
+        ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+      ): RouteBuilder<T> => {
+        if (Array.isArray(args[0])) {
+          const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
+          this._router.addRoute(method, route, handler, ...middlewares);
+        } else {
+          const [handler] = args as [Handler<T>];
+          this._router.addRoute(method, route, handler);
+        }
+        return builder;
+      };
     };
+
+    const builder: RouteBuilder<T> = {
+      get: makeMethod('GET'),
+      post: makeMethod('POST'),
+      put: makeMethod('PUT'),
+      patch: makeMethod('PATCH'),
+      delete: makeMethod('DELETE'),
+      options: makeMethod('OPTIONS'),
+    };
+
+    return builder;
   }
 
   /**
