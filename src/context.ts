@@ -1,5 +1,11 @@
+import { EvaBadRequestError } from './errors';
 import type { EvaRouteOptions } from './types';
 
+/**
+ * Request-side half of EvaContext: lazy, cached access to params, query
+ * and body. A Request body is a stream and can only be consumed once —
+ * the caching here is what makes calling `json()`/`text()` twice safe.
+ */
 export class Context<T extends EvaRouteOptions = {}> {
   req: Request;
 
@@ -51,7 +57,11 @@ export class Context<T extends EvaRouteOptions = {}> {
       return this._body as B;
     }
     const raw = await this.text();
-    this._body = JSON.parse(raw);
+    try {
+      this._body = JSON.parse(raw);
+    } catch {
+      throw new EvaBadRequestError('Malformed JSON body');
+    }
     this._bodyParsed = true;
     return this._body as B;
   }

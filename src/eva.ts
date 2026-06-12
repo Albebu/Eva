@@ -1,4 +1,4 @@
-import { EvaError, EvaInternalServerError } from './errors';
+import { EvaBadRequestError, EvaError, EvaInternalServerError } from './errors';
 import { EvaContext } from './eva-context';
 import { Router } from './router';
 import { methods } from './shared';
@@ -280,12 +280,16 @@ export class Eva {
         return ctx.notFound();
       }
 
-      ctx.params = Object.fromEntries(
-        Object.entries(match.params).map(([key, value]) => [
-          key,
-          decodeURIComponent(value),
-        ]),
-      );
+      try {
+        ctx.params = Object.fromEntries(
+          Object.entries(match.params).map(([key, value]) => [
+            key,
+            decodeURIComponent(value),
+          ]),
+        );
+      } catch (error) {
+        throw new EvaBadRequestError('Malformed URL encoding');
+      }
 
       const handler = match.handler;
       const allMiddleware = [...this._globalMiddleware, ...match.middlewares];

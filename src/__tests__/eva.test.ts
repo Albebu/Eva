@@ -1,6 +1,7 @@
 import { Eva } from '../eva';
 import { describe, beforeEach, it, expect } from 'bun:test';
-import { EvaNotFoundError } from '../errors';
+import { EvaBadRequestError, EvaNotFoundError } from '../errors';
+import { resolve } from 'bun';
 
 const BASE = 'http://localhost';
 
@@ -74,6 +75,15 @@ describe('Eva.handle', () => {
 
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ id: 'a b' });
+    });
+
+    it('returns 400 when a route param has malformed percent-encoding', async () => {
+      app.get('/users/:id', (ctx) => ctx.toJson(ctx.params));
+
+      const res = await app.handle(req('/users/%zz'));
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Malformed URL encoding' });
     });
 
     it('omits absent optional params after the full pipeline', async () => {
@@ -168,6 +178,20 @@ describe('Eva.handle', () => {
       );
 
       expect(await res.json()).toEqual({ same: true, body: { a: 1 } });
+    });
+
+    it('returns a 400 HTTP code when json body malformed', async () => {
+      app.post('/', async (ctx) => {
+        await ctx.json();
+        return ctx.toJson({ message: 'ok' });
+      });
+
+      const res = await app.handle(
+        req('/', { method: 'POST', body: '{"name": "a"' }),
+      );
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Malformed JSON body' });
     });
   });
 
