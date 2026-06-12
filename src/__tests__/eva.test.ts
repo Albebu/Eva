@@ -432,5 +432,40 @@ describe('Eva.handle', () => {
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ id: '7' });
     });
+
+    it('preserves route-level middlewares through toParent()', async () => {
+      const order: string[] = [];
+      const child = new Eva();
+      child.get(
+        '/users',
+        [
+          async (_ctx, next) => {
+            order.push('middleware');
+            await next();
+          },
+        ],
+        (ctx) => {
+          order.push('handler');
+          return ctx.toText('ok');
+        },
+      );
+      child.toParent(app, '/api');
+
+      const res = await app.handle(req('/api/users'));
+
+      expect(res.status).toBe(200);
+      expect(order).toEqual(['middleware', 'handler']);
+    });
+
+    it('preserves wildcard routes through toParent()', async () => {
+      const child = new Eva();
+      child.get('/static/*', (ctx) => ctx.toJson(ctx.params));
+      child.toParent(app, '/assets');
+
+      const res = await app.handle(req('/assets/static/css/main.css'));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ '*': 'css/main.css' });
+    });
   });
 });

@@ -49,8 +49,7 @@ export class Eva {
    * users.toParent(app, '/api/v1'); // -> GET /api/v1/users/:id
    * ```
    *
-   * Known limitations (see roadmap): route-level middlewares and wildcard
-   * branches are not copied yet.
+   * Handlers, route-level middlewares and wildcard branches are all copied.
    *
    * TODO(design): consider inverting to Express-style `parent.mount(prefix,
    * child)` in phase 4.
@@ -63,7 +62,12 @@ export class Eva {
     function copyRoutes(method: Method, node: TrieNode, path: string) {
       if (node?.handler) {
         const fullPath = prefix + (path ?? '/');
-        parent._router.addRoute(method, fullPath, node.handler);
+        parent._router.addRoute(
+          method,
+          fullPath,
+          node.handler,
+          ...(node.middlewares ?? []),
+        );
       }
       for (const [segment, child] of Object.entries(node.children)) {
         copyRoutes(method, child, `${path}/${segment}`);
@@ -72,13 +76,20 @@ export class Eva {
       if (node.param) {
         copyRoutes(method, node.param.node, `${path}/:${node.param.name}`);
       }
+
+      if (node.wildcard) {
+        copyRoutes(method, node.wildcard, `${path}/*`);
+      }
     }
   }
 
   /**
-   * Registers a global middleware. They run on every request, in
-   * registration order, before any route middleware and the handler.
-   * A middleware must `await next()` to continue the chain.
+   * Registers a global middleware. They run on EVERY request — including
+   * ones that end in 404/405 — in registration order, BEFORE routing
+   * (Express-style). Because routing has not happened yet, ctx.params is
+   * empty inside global middlewares. A middleware must `await next()` to
+   * continue the chain, and may return a Response to answer the request
+   * itself.
    */
   use(middleware: EvaMiddleware): Eva {
     this._globalMiddleware.push(middleware);
