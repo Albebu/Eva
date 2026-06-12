@@ -194,6 +194,19 @@ describe('Eva.handle', () => {
       expect(order).toEqual(['global', 'route', 'handler']);
     });
 
+    it('runs global middlewares before routing, even when no route matches', async () => {
+      const order: string[] = [];
+      app.use(async (_ctx, next) => {
+        order.push('middleware');
+        await next();
+      });
+
+      const res = await app.handle(req('/nope'));
+
+      expect(res.status).toBe(404);
+      expect(order).toEqual(['middleware']);
+    });
+
     it('short-circuits with the middleware response without running the handler', async () => {
       const order: string[] = [];
       app.use(async () => {

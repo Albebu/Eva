@@ -274,8 +274,8 @@ export class Eva {
   /**
    * The whole framework as a pure function: Request in, Response out.
    *
-   * Pipeline: parse query -> route match (404/405 if none) -> percent-decode
-   * params -> global middlewares -> route middlewares -> handler -> error
+   * Pipeline: parse query -> global middlewares -> route match (404/405 if
+   * none) -> percent-decode params -> route middlewares -> handler -> error
    * boundary (EvaError -> its status; anything else -> onError or a generic
    * 500 that leaks no detail).
    *
@@ -295,72 +295,82 @@ export class Eva {
     ctx.query = query;
 
     try {
-      const methodToSearch: Method = method === 'HEAD' ? 'GET' : method;
-      const match = this._router.match(methodToSearch, path);
+      let response: Response | undefined;
 
-      if (!match) {
-        const methodsToSearch: Method[] = [
-          'GET',
-          'POST',
-          'PUT',
-          'PATCH',
-          'DELETE',
-        ];
-        const availableMethods: string[] = [];
+      // Generic chain runner: walks `chain` and calls `tail` at the end.
+      // A middleware that returns a Response sets it — short-circuit when
+      // it skipped next(), override when it ran the chain first.
+      const runChain = async (
+        chain: EvaMiddleware[],
+        tail: () => Promise<void>,
+      ): Promise<void> => {
+        const run = async (index: number): Promise<void> => {
+          if (index < chain.length) {
+            const result = await chain[index]!(ctx, () => run(index + 1));
+            if (result !== undefined) {
+              response = result;
+            }
+          } else {
+            await tail();
+          }
+        };
+        await run(0);
+      };
 
-        for (const m of methodsToSearch) {
-          if (m !== methodToSearch) {
-            const found = this._router.match(m, path);
-            if (found) {
+      // Routing is the LAST station of the global chain (Express-style):
+      // every request crosses every global middleware first, so things
+      // like CORS preflights work even for unmatched routes. This also
+      // means ctx.params is not populated yet inside global middlewares.
+      const dispatch = async (): Promise<void> => {
+        const methodToSearch: Method = method === 'HEAD' ? 'GET' : method;
+        const match = this._router.match(methodToSearch, path);
+
+        if (!match) {
+          const methodsToSearch: Method[] = [
+            'GET',
+            'POST',
+            'PUT',
+            'PATCH',
+            'DELETE',
+          ];
+          const availableMethods: string[] = [];
+
+          for (const m of methodsToSearch) {
+            if (m !== methodToSearch && this._router.match(m, path)) {
               availableMethods.push(m);
             }
           }
+
+          response =
+            availableMethods.length > 0
+              ? new Response('Not Allowed', {
+                  status: 405,
+                  headers: {
+                    Allow: availableMethods.join(', '),
+                    'Content-Type': 'text/plain',
+                  },
+                })
+              : ctx.notFound();
+          return;
         }
 
-        if (availableMethods.length > 0) {
-          return new Response('Not Allowed', {
-            status: 405,
-            headers: {
-              Allow: availableMethods.join(', '),
-              'Content-Type': 'text/plain',
-            },
-          });
+        try {
+          ctx.params = Object.fromEntries(
+            Object.entries(match.params).map(([key, value]) => [
+              key,
+              decodeURIComponent(value),
+            ]),
+          );
+        } catch {
+          throw new EvaBadRequestError('Malformed URL encoding');
         }
 
-        return ctx.notFound();
-      }
-
-      try {
-        ctx.params = Object.fromEntries(
-          Object.entries(match.params).map(([key, value]) => [
-            key,
-            decodeURIComponent(value),
-          ]),
-        );
-      } catch (error) {
-        throw new EvaBadRequestError('Malformed URL encoding');
-      }
-
-      const handler = match.handler;
-      const allMiddleware = [...this._globalMiddleware, ...match.middlewares];
-
-      let response: Response | undefined;
-
-      const runChain = async (index: number): Promise<void> => {
-        if (index < allMiddleware.length) {
-          const middleware = allMiddleware[index]!;
-          const res = await middleware(ctx, () => runChain(index + 1));
-
-          // Para cuando un middleware devuelve una respuesta y no tiene await next()
-          if (res !== undefined) {
-            response = res;
-          }
-        } else {
-          response = await handler(ctx);
-        }
+        await runChain(match.middlewares, async () => {
+          response = await match.handler(ctx);
+        });
       };
 
-      await runChain(0);
+      await runChain(this._globalMiddleware, dispatch);
 
       if (method === 'HEAD') {
         return new Response(null, {
