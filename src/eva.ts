@@ -21,12 +21,19 @@ export class Eva {
   }
 
   /**
-   * Es un poco raro pasar la instancia principal a una instancia secundaria no?
-   * Sería mejor hacer como en Express?
-   * primaryServer.implement(prefix, secundaryServer) ?
-   * secundaryServer.toParent(primaryServer, prefix) --> No se si me convence.
-   * @param parent
-   * @param prefix
+   * Mounts this instance's routes into `parent` under a prefix:
+   *
+   * ```ts
+   * const users = new Eva();
+   * users.get('/users/:id', handler);
+   * users.toParent(app, '/api/v1'); // -> GET /api/v1/users/:id
+   * ```
+   *
+   * Known limitations (see roadmap): route-level middlewares and wildcard
+   * branches are not copied yet.
+   *
+   * TODO(design): consider inverting to Express-style `parent.mount(prefix,
+   * child)` in phase 4.
    */
   toParent(parent: Eva, prefix: string = ''): void {
     for (const m of methods) {
@@ -48,16 +55,27 @@ export class Eva {
     }
   }
 
-  use(prefixOrInstance: EvaMiddleware): Eva {
-    this._globalMiddleware.push(prefixOrInstance);
+  /**
+   * Registers a global middleware. They run on every request, in
+   * registration order, before any route middleware and the handler.
+   * A middleware must `await next()` to continue the chain.
+   */
+  use(middleware: EvaMiddleware): Eva {
+    this._globalMiddleware.push(middleware);
     return this;
   }
 
+  /**
+   * Registers the handler for errors that are NOT EvaError instances
+   * (those map to their own status automatically). Without it, unknown
+   * errors become a generic 500 with no detail leaked to the client.
+   */
   onError(handler: ErrorHandler): Eva {
     this._errorHandler = handler;
     return this;
   }
 
+  /** Registers a GET route. Optional second argument: route middlewares. */
   get<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
   get<T extends EvaRouteOptions>(
     route: string,
@@ -78,6 +96,7 @@ export class Eva {
     return this;
   }
 
+  /** Registers a POST route. Optional second argument: route middlewares. */
   post<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
   post<T extends EvaRouteOptions>(
     route: string,
@@ -98,6 +117,7 @@ export class Eva {
     return this;
   }
 
+  /** Registers a PUT route. Optional second argument: route middlewares. */
   put<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
   put<T extends EvaRouteOptions>(
     route: string,
@@ -118,6 +138,7 @@ export class Eva {
     return this;
   }
 
+  /** Registers a PATCH route. Optional second argument: route middlewares. */
   patch<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
   patch<T extends EvaRouteOptions>(
     route: string,
@@ -138,6 +159,7 @@ export class Eva {
     return this;
   }
 
+  /** Registers a DELETE route. Optional second argument: route middlewares. */
   delete<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
   delete<T extends EvaRouteOptions>(
     route: string,
@@ -158,6 +180,7 @@ export class Eva {
     return this;
   }
 
+  /** Registers an OPTIONS route. Optional second argument: route middlewares. */
   options<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
   options<T extends EvaRouteOptions>(
     route: string,
@@ -178,6 +201,16 @@ export class Eva {
     return this;
   }
 
+  /**
+   * Fluent builder to group several methods on one path:
+   *
+   * ```ts
+   * app.route('/tasks').get(listTasks).post(createTask);
+   * ```
+   *
+   * The `<verb>With(middlewares, handler)` variants register route-level
+   * middlewares for that method.
+   */
   route<T extends EvaRouteOptions>(route: string) {
     const self = this;
     return {
@@ -232,6 +265,17 @@ export class Eva {
     };
   }
 
+  /**
+   * The whole framework as a pure function: Request in, Response out.
+   *
+   * Pipeline: parse query -> route match (404/405 if none) -> percent-decode
+   * params -> global middlewares -> route middlewares -> handler -> error
+   * boundary (EvaError -> its status; anything else -> onError or a generic
+   * 500 that leaks no detail).
+   *
+   * `serve()` plugs this into a real socket; tests call it directly with a
+   * `new Request(...)` and never need to bind a port.
+   */
   async handle(req: Request): Promise<Response> {
     const ctx = new EvaContext(req);
     const url = new URL(req.url);
@@ -336,6 +380,11 @@ export class Eva {
     }
   }
 
+  /**
+   * Starts a Bun server backed by `handle()` and returns it — use the
+   * return value for `server.port` (pass port 0 for a random free one)
+   * and `server.stop()`.
+   */
   serve(port?: number, callback?: () => void): Bun.Server<unknown> {
     return Bun.serve({
       port: port ?? 9999, //TODO: Poner el puerto 3000 por defecto.

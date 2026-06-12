@@ -1,3 +1,8 @@
+/**
+ * Response-side half of EvaContext. Accumulates headers set during the
+ * middleware chain (`setHeader`) and stamps them onto whichever response
+ * the handler finally builds (`toJson`, `toText`, `redirect`...).
+ */
 export class ResponseBuilder {
   private _headers: Headers = new Headers();
 

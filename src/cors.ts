@@ -4,6 +4,16 @@ import type { CorsOptions } from './types/cors';
 
 const allowedHeaders = ['Content-Type'];
 
+/**
+ * Built-in CORS middleware. `origin` accepts `'*'`, one exact origin, or
+ * an array of exact origins — matching is always exact, never substring
+ * (a request from `https://evil.co` must not pass for `https://evil.com`).
+ * Requests without an Origin header (curl, server-to-server) pass through
+ * untouched.
+ *
+ * Pending (see roadmap): preflight for specific origins, `credentials`,
+ * `maxAge`, configurable `allowedHeaders`.
+ */
 export function cors(options: CorsOptions): EvaMiddleware {
   return async (ctx, next) => {
     const requestOrigin = ctx.getHeader('Origin') ?? '';
