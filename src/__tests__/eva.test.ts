@@ -1,7 +1,7 @@
 import { Eva } from '../eva';
-import { describe, beforeEach, it, expect } from 'bun:test';
-import { EvaBadRequestError, EvaNotFoundError } from '../errors';
-import { resolve } from 'bun';
+import { describe, beforeEach, it, expect, test } from 'bun:test';
+import { EvaNotFoundError } from '../errors';
+import { EvaContext } from '../eva-context';
 
 const BASE = 'http://localhost';
 
@@ -9,7 +9,8 @@ function req(path: string, init?: RequestInit): Request {
   return new Request(`${BASE}${path}`, init);
 }
 
-const makeHandler = () => () => new Response('ok');
+const makeHandler = (method?: string) => (ctx: EvaContext) =>
+  ctx.toText(method ?? 'ok');
 
 describe('Eva.handle', () => {
   let app: Eva;
@@ -53,10 +54,9 @@ describe('Eva.handle', () => {
 
       expect(res.status).toBe(200);
       expect(await res.text()).toBe('');
-      // HEAD copies the GET response headers (RFC 9110). Note: Bun does not
-      // reflect the implicit Content-Type of `new Response('ok')` in
-      // response.headers, so nothing is copied here — hence null.
-      expect(res.headers.get('Content-Type')).toBe(null);
+      // HEAD copies the GET response headers (RFC 9110) — including the
+      // explicit Content-Type that toText() sets.
+      expect(res.headers.get('Content-Type')).toBe('text/plain');
     });
 
     it('parses the query string into ctx.query', async () => {
@@ -101,6 +101,50 @@ describe('Eva.handle', () => {
 
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ '*': 'a/b/c' });
+    });
+    it('chains every method on one path through the route builder', async () => {
+      app
+        .route('/users')
+        .get(makeHandler('GET'))
+        .post(makeHandler('POST'))
+        .put(makeHandler('PUT'))
+        .patch(makeHandler('PATCH'))
+        .delete(makeHandler('DELETE'))
+        .options(makeHandler('OPTIONS'));
+
+      // Local list on purpose: depending on the framework's `methods`
+      // constant would break this test if its order or content changed,
+      // without the builder being broken at all.
+      const verbs = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+
+      for (const method of verbs) {
+        const res = await app.handle(req('/users', { method }));
+
+        expect(res.status).toBe(200);
+        expect(await res.text()).toBe(method);
+      }
+    });
+
+    it('accepts an optional middlewares array in the builder verbs', async () => {
+      const order: string[] = [];
+      app.route('/guarded').get(
+        [
+          async (_ctx, next) => {
+            order.push('middleware');
+            await next();
+          },
+        ],
+        (ctx) => {
+          order.push('handler');
+          return ctx.toText('ok');
+        },
+      );
+
+      const res = await app.handle(req('/guarded'));
+
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('ok');
+      expect(order).toEqual(['middleware', 'handler']);
     });
   });
 
@@ -151,6 +195,104 @@ describe('Eva.handle', () => {
     });
   });
 
+  describe('HTTP verbs', () => {
+    test.each([
+      ['PUT', () => app.put('/resource', (ctx) => ctx.toText('PUT'))],
+      ['PATCH', () => app.patch('/resource', (ctx) => ctx.toText('PATCH'))],
+      ['DELETE', () => app.delete('/resource', (ctx) => ctx.toText('DELETE'))],
+      [
+        'OPTIONS',
+        () => app.options('/resource', (ctx) => ctx.toText('OPTIONS')),
+      ],
+    ] as const)(
+      '%s requests reach their handler',
+      async (method: string, register: () => void) => {
+        register();
+
+        const res = await app.handle(req('/resource', { method }));
+
+        expect(res.status).toBe(200);
+        expect(await res.text()).toBe(method);
+      },
+    );
+
+    it('accepts route middlewares on non-GET verbs', async () => {
+      const order: string[] = [];
+      app.delete(
+        '/resource',
+        [
+          async (_ctx, next) => {
+            order.push('middleware');
+            await next();
+          },
+        ],
+        (ctx) => {
+          order.push('handler');
+          return ctx.toText('deleted');
+        },
+      );
+
+      const res = await app.handle(req('/resource', { method: 'DELETE' }));
+
+      expect(res.status).toBe(200);
+      expect(order).toEqual(['middleware', 'handler']);
+    });
+  });
+
+  describe('response helpers', () => {
+    it('redirect() defaults to 301 with the Location header', async () => {
+      app.get('/old', (ctx) => ctx.redirect('/new'));
+
+      const res = await app.handle(req('/old'));
+
+      expect(res.status).toBe(301);
+      expect(res.headers.get('Location')).toBe('/new');
+    });
+
+    it('redirect() honors an explicit status code', async () => {
+      app.get('/old', (ctx) => ctx.redirect('/new', 307));
+
+      const res = await app.handle(req('/old'));
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get('Location')).toBe('/new');
+    });
+
+    it('toText() responds with a text/plain Content-Type', async () => {
+      app.get('/', (ctx) => ctx.toText('plain', { status: 418 }));
+
+      const res = await app.handle(req('/'));
+
+      expect(res.status).toBe(418);
+      expect(res.headers.get('Content-Type')).toBe('text/plain');
+      expect(await res.text()).toBe('plain');
+    });
+
+    it('headers set via setHeader() land on the final response', async () => {
+      app.get('/', (ctx) => {
+        ctx.setHeader('X-Custom', 'eva');
+        return ctx.toJson({ ok: true });
+      });
+
+      const res = await app.handle(req('/'));
+
+      expect(res.headers.get('X-Custom')).toBe('eva');
+      expect(await res.json()).toEqual({ ok: true });
+    });
+
+    it('exposes request headers and path through the context', async () => {
+      app.get('/inspect', (ctx) =>
+        ctx.toJson({ header: ctx.getHeader('X-In'), path: ctx.path }),
+      );
+
+      const res = await app.handle(
+        req('/inspect', { headers: { 'X-In': 'hello' } }),
+      );
+
+      expect(await res.json()).toEqual({ header: 'hello', path: '/inspect' });
+    });
+  });
+
   describe('body parsing', () => {
     it('exposes a valid JSON body through ctx.json()', async () => {
       app.post('/', async (ctx) => ctx.toJson(await ctx.json()));
@@ -178,6 +320,17 @@ describe('Eva.handle', () => {
       );
 
       expect(await res.json()).toEqual({ same: true, body: { a: 1 } });
+    });
+
+    it('exposes the raw body through ctx.text()', async () => {
+      app.post('/raw', async (ctx) => ctx.toText(await ctx.text()));
+
+      const res = await app.handle(
+        req('/raw', { method: 'POST', body: 'plain text body' }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('plain text body');
     });
 
     it('returns a 400 HTTP code when json body malformed', async () => {
