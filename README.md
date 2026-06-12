@@ -135,7 +135,7 @@ The order matters: phase 0 makes the framework testable, phase 1 locks current b
 
 - [x] Characterization tests for what already works: static routes, `:params`, query parsing, 404, 405 + `Allow` header, automatic HEAD, middleware order (global → route → handler)
 - [ ] **Design fix**: allow middleware to short-circuit with a response (`EvaMiddleware` returning `Response | void`, or a response builder on the context). Today a middleware that doesn't call `next()` leaves `response` as `undefined` and `serve()` does `return response!` — the CORS preflight path hits exactly this
-- [ ] **Bug**: invalid JSON body → `JSON.parse` in `src/context.ts` throws an unhandled `SyntaxError` and the client gets a 500. Expected: 400 Bad Request
+- [x] **Bug**: invalid JSON body → `JSON.parse` in `src/context.ts` throws an unhandled `SyntaxError` and the client gets a 500. Expected: 400 Bad Request
 - [x] **Bug**: CORS origin check in `src/cors.ts` uses `.includes()`, which is substring matching when `origin` is a string — `"https://example.com".includes("https://example.co")` is `true`, so a malicious origin passes. Handle the string case and the array case explicitly
 - [ ] **Bug**: CORS preflight (OPTIONS) is only short-circuited in the `"*"` branch; specific-origin preflights fall through. Decide the preflight behavior once and test it for both branches
 - [ ] **Bug**: `toParent()` copies handlers but drops route-level middlewares (`addRoute` is called without `node.middlewares`)
