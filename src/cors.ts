@@ -35,12 +35,20 @@ export function cors(options: CorsOptions): EvaMiddleware {
     }
 
     if (allowedOrigin !== undefined) {
-      ctx.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-      ctx.setHeader('Access-Control-Allow-Methods', methods.join(', '));
-      ctx.setHeader('Access-Control-Allow-Headers', allowedHeaders.join(', '));
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': allowedOrigin,
+        'Access-Control-Allow-Methods': methods.join(', '),
+        'Access-Control-Allow-Headers': allowedHeaders.join(', '),
+      };
 
-      if (allowedOrigin === '*' && ctx.req.method === 'OPTIONS') {
-        return;
+      // Preflight: the middleware answers it itself (short-circuit) — the
+      // handler chain never runs. 204 because a preflight has no body.
+      if (ctx.req.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+
+      for (const [key, value] of Object.entries(corsHeaders)) {
+        ctx.setHeader(key, value);
       }
     }
 
