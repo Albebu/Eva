@@ -1,6 +1,6 @@
 import { Router } from '../router';
 import { describe, beforeEach, it, expect, test } from 'bun:test';
-import { EvaConflictError } from '../errors';
+import { EvaConfigError } from '../errors';
 import type { EvaMiddleware } from '../types';
 
 const makeHandler = () => () => new Response('ok');
@@ -19,11 +19,11 @@ describe('Router', () => {
       );
     });
 
-    it('throws EvaConflictError when two routes declare different param names at the same position', () => {
+    it('throws EvaConfigError when two routes declare different param names at the same position', () => {
       router.addRoute('GET', '/users/:id', makeHandler());
       expect(() =>
         router.addRoute('GET', '/users/:userId/posts', makeHandler()),
-      ).toThrow(EvaConflictError);
+      ).toThrow(EvaConfigError);
     });
 
     it('throws when registering a route that already has a handler', () => {
@@ -172,7 +172,7 @@ describe('Router', () => {
 
       expect(() =>
         router.addRoute('GET', '/users/:userId?', makeHandler()),
-      ).toThrow(EvaConflictError);
+      ).toThrow(EvaConfigError);
     });
 
     it('throws when a desugared variant collides with an existing route', () => {

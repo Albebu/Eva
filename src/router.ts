@@ -1,4 +1,4 @@
-import { EvaConflictError } from './errors';
+import { EvaConfigError } from './errors';
 import type {
   EvaMiddleware,
   EvaRouteOptions,
@@ -8,11 +8,19 @@ import type {
   TrieNode,
 } from './types';
 
-// | Router |
-
+/**
+ * Trie-based router: one prefix tree per HTTP method. Each node can have
+ * three kinds of children, tried in this order on lookup:
+ *
+ * 1. `children` — static segments (`/users`)
+ * 2. `param`    — one named dynamic segment (`/:id`)
+ * 3. `wildcard` — consumes the rest of the path (`/*`)
+ *
+ * The router is a pure data structure: it knows nothing about HTTP
+ * requests or responses. Registration mistakes throw EvaConfigError so
+ * they crash at startup, never mid-request.
+ */
 export class Router {
-  // | Trie |
-
   private routes: Record<Method, TrieNode> = {
     GET: { children: {} },
     POST: { children: {} },
@@ -23,8 +31,14 @@ export class Router {
     HEAD: { children: {} },
   };
 
-  // | Add Route |
-
+  /**
+   * Registers a route pattern for a method. Supported segments: static
+   * (`/users`), named params (`/:id`), trailing optional params (`/:id?`)
+   * and a trailing wildcard (`/*`).
+   *
+   * Fail-fast policy: invalid patterns, conflicting param names and
+   * duplicate registrations throw EvaConfigError at registration time.
+   */
   addRoute<T extends EvaRouteOptions>(
     method: Method,
     route: string,
@@ -32,21 +46,21 @@ export class Router {
     ...middlewares: EvaMiddleware[]
   ): void {
     if (!route.startsWith('/')) {
-      throw new Error(`Route ${route} must start with /`);
+      throw new EvaConfigError(`Route ${route} must start with /`);
     }
 
     const segments = route.split('/').filter(Boolean);
 
-    // Optional params (:x?) son azúcar sintáctico: se desazucaran en una
-    // variante por cada prefijo válido (/a/:b?/:c? -> /a, /a/:b, /a/:b/:c) y
-    // cada variante se registra por el camino normal, heredando todas las
-    // validaciones (conflictos de nombre, duplicados...).
+    // Optional params (:x?) are syntactic sugar: they desugar into one
+    // variant per valid prefix (/a/:b?/:c? -> /a, /a/:b, /a/:b/:c), and
+    // each variant goes through the normal registration path, inheriting
+    // every validation (name conflicts, duplicates...).
     const isOptional = (s: string) => s.startsWith(':') && s.endsWith('?');
     const firstOptional = segments.findIndex(isOptional);
 
     if (firstOptional !== -1) {
       if (!segments.slice(firstOptional).every(isOptional)) {
-        throw new Error(
+        throw new EvaConfigError(
           `Invalid route ${route}: optional params must be trailing`,
         );
       }
@@ -65,20 +79,19 @@ export class Router {
     let node = this.routes[method];
 
     for (const [i, segment] of segments.entries()) {
-      // Static route
+      // Static segment
       if (!segment.startsWith(':') && !segment.startsWith('*')) {
         if (!node.children[segment]) {
           node.children[segment] = { children: {} };
         }
         node = node.children[segment];
       }
-      // Dynamic route
+      // Named param — a position can hold only ONE param name across all
+      // routes; allowing two would make extraction ambiguous.
       else if (segment.startsWith(':')) {
         const name = segment.slice(1);
-        // Caso en el que ya hay un param y se quiere declarar en la misma ruta pero con un nombre
-        // diferente.
         if (node.param && node.param.name !== name) {
-          throw new EvaConflictError(
+          throw new EvaConfigError(
             `Two routes declare different param names at the same position: ${node.param.name} and ${name}`,
           );
         }
@@ -87,11 +100,11 @@ export class Router {
         }
         node = node.param.node;
       }
-      // Wildcard route: only valid as the final segment; the wildcard branch
-      // is a third kind of child, symmetric with `param`
+      // Wildcard — only valid as the final segment; the wildcard branch is
+      // a third kind of child, symmetric with `param`.
       else {
         if (i !== segments.length - 1) {
-          throw new Error(
+          throw new EvaConfigError(
             `Invalid route ${route}: wildcard must be the last segment`,
           );
         }
@@ -102,9 +115,11 @@ export class Router {
       }
     }
 
-    // Fallar ruidoso en registro: pisar un handler en silencio esconde bugs.
+    // Fail loudly on duplicates: silently replacing a handler hides bugs.
     if (node.handler) {
-      throw new Error(`Route ${route} is already registered for ${method}`);
+      throw new EvaConfigError(
+        `Route ${route} is already registered for ${method}`,
+      );
     }
 
     node.handler = callback as Handler;
@@ -113,23 +128,29 @@ export class Router {
     }
   }
 
+  /**
+   * Looks up a request path. Returns the handler, the extracted params
+   * (raw, NOT percent-decoded — decoding is the HTTP layer's job) and the
+   * route-level middlewares collected along the way, or null if nothing
+   * matches. Precedence per segment: static > param > wildcard.
+   */
   match(method: Method, path: string): MatchResult | null {
     const segments = path.split('/').filter(Boolean);
     let node = this.routes[method];
     const params: Record<string, string> = {};
     const middlewares: EvaMiddleware[] = [];
 
-    // Último wildcard visto durante el recorrido y el índice del primer
-    // segmento que consumiría. Si la búsqueda fracasa más adelante (en una
-    // rama más específica), cae de vuelta a él. Como solo se apunta cuando
-    // aún quedan segmentos por consumir, el prefijo pelado (/users contra
-    // /users/*) nunca lo activa.
+    // Last wildcard seen during the walk, plus the index of the first
+    // segment it would consume. If the search dead-ends deeper (in a more
+    // specific branch), it falls back to this. Because it is only recorded
+    // while segments remain to be consumed, a bare prefix (/users against
+    // /users/*) can never activate it.
     let wildcard: { node: TrieNode; rest: number } | null = null;
 
     const resolveWildcard = (): MatchResult | null => {
       if (!wildcard?.node.handler) return null;
-      // Los params y middlewares acumulados pertenecen a la rama abandonada,
-      // no a la ruta wildcard: se reconstruyen desde cero.
+      // Params and middlewares accumulated so far belong to the abandoned
+      // branch, not to the wildcard route: rebuild from scratch.
       return {
         handler: wildcard.node.handler,
         params: { '*': segments.slice(wildcard.rest).join('/') },
@@ -150,8 +171,8 @@ export class Router {
         params[node.param.name] = segment;
         node = node.param.node;
       } else {
-        // Sin hijo estático ni param: el wildcard recordado (que puede ser
-        // el de este mismo nivel) es la única salida.
+        // No static child and no param: the remembered wildcard (possibly
+        // the one at this very level) is the only way out.
         return resolveWildcard();
       }
 
@@ -169,8 +190,7 @@ export class Router {
     return { handler: node.handler, params, middlewares };
   }
 
-  // | Debug |
-
+  /** Exposes the raw tries. Debug/introspection only — do not mutate. */
   getRoutes(): Record<Method, TrieNode> {
     return this.routes;
   }
