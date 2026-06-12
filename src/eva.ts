@@ -338,7 +338,12 @@ export class Eva {
       const runChain = async (index: number): Promise<void> => {
         if (index < allMiddleware.length) {
           const middleware = allMiddleware[index]!;
-          await middleware(ctx, () => runChain(index + 1));
+          const res = await middleware(ctx, () => runChain(index + 1));
+
+          // Para cuando un middleware devuelve una respuesta y no tiene await next()
+          if (res !== undefined) {
+            response = res;
+          }
         } else {
           response = await handler(ctx);
         }

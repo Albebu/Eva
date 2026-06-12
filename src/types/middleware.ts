@@ -2,8 +2,8 @@ import type { EvaContext } from '../eva-context';
 
 export type EvaMiddleware = (
   ctx: EvaContext,
-  next: () => Promise<void>,
-) => void | Promise<void>;
+  next: () => Promise<Response | void>,
+) => void | Promise<Response | void>;
 
 export type ErrorHandler = (
   error: unknown,

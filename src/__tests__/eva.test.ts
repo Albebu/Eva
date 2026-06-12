@@ -1,5 +1,5 @@
 import { Eva } from '../eva';
-import { describe, beforeEach, it, expect, test } from 'bun:test';
+import { describe, beforeEach, it, expect, test, mock } from 'bun:test';
 import { EvaNotFoundError } from '../errors';
 import { EvaContext } from '../eva-context';
 
@@ -192,6 +192,40 @@ describe('Eva.handle', () => {
       await app.handle(req('/'));
 
       expect(order).toEqual(['global', 'route', 'handler']);
+    });
+
+    it('short-circuits with the middleware response without running the handler', async () => {
+      const order: string[] = [];
+      app.use(async () => {
+        order.push('middleware');
+        return new Response('middleware response');
+      });
+      app.get('/', () => {
+        order.push('handler');
+        return new Response('handler response');
+      });
+
+      const res = await app.handle(req('/'));
+
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('middleware response');
+      // the whole point of the short-circuit: nothing after the middleware ran
+      expect(order).toEqual(['middleware']);
+    });
+
+    it('overrides the handler response when a middleware returns one after next()', async () => {
+      const handler = mock((ctx: EvaContext) => ctx.toText('handler response'));
+      app.use(async (_ctx, next) => {
+        await next();
+        return new Response('middleware response');
+      });
+      app.get('/', handler);
+
+      const res = await app.handle(req('/'));
+
+      // the outermost response wins, but the chain did run
+      expect(await res.text()).toBe('middleware response');
+      expect(handler).toHaveBeenCalledTimes(1);
     });
   });
 
