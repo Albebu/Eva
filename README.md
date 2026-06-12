@@ -144,7 +144,7 @@ The order matters: phase 0 makes the framework testable, phase 1 locks current b
 
 ### Phase 2 — Router robustness (edge cases)
 
-- [ ] Trailing slash policy: `/users` vs `/users/` — pick a behavior, document it, test it
+- [x] Trailing slash policy: STRICT (Fastify/Hono-style) — `/users/` and `/users` are different routes; params never capture empty segments. Documented in Router's JSDoc and pinned by tests
 - [x] Empty segments (`//users`), URL-encoded params (`/users/a%20b` should decode to `a b`)
 - [x] Static-over-param priority: `/users/me` must win over `/users/:id`, including backtracking when a static prefix dead-ends
 - [x] Wildcard routes (`/static/*`)

@@ -260,15 +260,31 @@ describe('Router', () => {
     });
   });
 
-  describe('match — path normalization', () => {
+  // Deliberate policy (Fastify/Hono-style): matching is STRICT. Every slash
+  // is meaningful — '/users/' and '//users' are different paths from
+  // '/users' and 404 unless explicitly registered.
+  describe('match — strict trailing slash policy', () => {
     test.each([
       ['/users/', 'trailing slash'],
       ['//users', 'double slashes'],
-    ])('%s resolves to the same route as /users (%s)', (path) => {
-      const handler = makeHandler();
-      router.addRoute('GET', '/users', handler);
+    ])('%s does NOT match /users (%s)', (path) => {
+      router.addRoute('GET', '/users', makeHandler());
 
-      expect(router.match('GET', path)?.handler).toBe(handler);
+      expect(router.match('GET', path)).toBeNull();
+    });
+
+    it('matches an explicitly registered trailing-slash route', () => {
+      const handler = makeHandler();
+      router.addRoute('GET', '/users/', handler);
+
+      expect(router.match('GET', '/users/')?.handler).toBe(handler);
+      expect(router.match('GET', '/users')).toBeNull();
+    });
+
+    it('does not capture an empty segment as a param value', () => {
+      router.addRoute('GET', '/users/:id', makeHandler());
+
+      expect(router.match('GET', '/users/')).toBeNull();
     });
   });
 

@@ -19,8 +19,21 @@ import type {
  * The router is a pure data structure: it knows nothing about HTTP
  * requests or responses. Registration mistakes throw EvaConfigError so
  * they crash at startup, never mid-request.
+ *
+ * Matching is STRICT (Fastify/Hono-style): '/users/' and '/users' are
+ * different routes, and a param never captures an empty segment.
  */
 export class Router {
+  /**
+   * Strict segmentation (deliberate policy, Fastify/Hono-style): every
+   * slash is meaningful, so '/users/' produces ['users', ''] and does NOT
+   * equal '/users' (['users']). The only special case is the root path.
+   */
+  private static segments(path: string): string[] {
+    if (path === '/') return [];
+    return path.slice(1).split('/');
+  }
+
   private routes: Record<Method, TrieNode> = {
     GET: { children: {} },
     POST: { children: {} },
@@ -49,7 +62,7 @@ export class Router {
       throw new EvaConfigError(`Route ${route} must start with /`);
     }
 
-    const segments = route.split('/').filter(Boolean);
+    const segments = Router.segments(route);
 
     // Optional params (:x?) are syntactic sugar: they desugar into one
     // variant per valid prefix (/a/:b?/:c? -> /a, /a/:b, /a/:b/:c), and
@@ -135,7 +148,7 @@ export class Router {
    * matches. Precedence per segment: static > param > wildcard.
    */
   match(method: Method, path: string): MatchResult | null {
-    const segments = path.split('/').filter(Boolean);
+    const segments = Router.segments(path);
     let node = this.routes[method];
     const params: Record<string, string> = {};
     const middlewares: EvaMiddleware[] = [];
@@ -167,7 +180,9 @@ export class Router {
 
       if (node.children[segment]) {
         node = node.children[segment];
-      } else if (node.param) {
+      } else if (node.param && segment !== '') {
+        // A param never captures an empty segment: under strict matching,
+        // '/users/' must not match '/users/:id' with id = ''.
         params[node.param.name] = segment;
         node = node.param.node;
       } else {
