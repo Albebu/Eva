@@ -1,5 +1,4 @@
-import { methods } from './shared';
-import type { EvaMiddleware } from './types';
+import { METHOD, type EvaMiddleware } from './types';
 import type { CorsOptions } from './types/cors';
 
 const allowedHeaders = ['Content-Type'];
@@ -37,7 +36,7 @@ export function cors(options: CorsOptions): EvaMiddleware {
     if (allowedOrigin !== undefined) {
       const corsHeaders = {
         'Access-Control-Allow-Origin': allowedOrigin,
-        'Access-Control-Allow-Methods': methods.join(', '),
+        'Access-Control-Allow-Methods': Object.values(METHOD).join(', '),
         'Access-Control-Allow-Headers': allowedHeaders.join(', '),
       };
 
