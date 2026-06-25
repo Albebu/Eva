@@ -340,12 +340,13 @@ export class Eva {
 
   /**
    * Starts a Bun server backed by `handle()` and returns it — use the
-   * return value for `server.port` (pass port 0 for a random free one)
-   * and `server.stop()`.
+   * return value for `server.port` (pass port 0 for a random free one),
+   * port 3000 is the default if none is provided.
+   * Call `server.stop()` to stop the server.
    */
   serve(port?: number, callback?: () => void): Bun.Server<unknown> {
     const server = Bun.serve({
-      port: port ?? 9999,
+      port: port ?? 3000,
       fetch: async (req) => this.handle(req),
     });
     callback?.();
