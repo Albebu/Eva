@@ -1,15 +1,20 @@
 import { EvaBadRequestError, EvaError, EvaInternalServerError } from './errors';
 import { EvaContext } from './eva-context';
 import { Router } from './router';
-import { methods } from './shared';
-import type {
-  ErrorHandler,
-  EvaMiddleware,
-  EvaRouteOptions,
-  Handler,
-  Method,
-  TrieNode,
+import {
+  METHOD,
+  type ErrorHandler,
+  type EvaMiddleware,
+  type EvaRouteOptions,
+  type Handler,
+  type Method,
+  type TrieNode,
 } from './types';
+
+// Sin esta función siempre tengo que castear y puede dar problemas en runtime
+function isMethod(method: string): method is Method {
+  return method in METHOD;
+}
 
 /**
  * Fluent registrar returned by `Eva.route()`. Object literals cannot carry
@@ -55,7 +60,7 @@ export class Eva {
    * child)` in phase 4.
    */
   toParent(parent: Eva, prefix: string = ''): void {
-    for (const m of methods) {
+    for (const m of Object.values(METHOD)) {
       copyRoutes(m, this._router.getRoutes()[m], '');
     }
 
@@ -222,8 +227,13 @@ export class Eva {
   async handle(req: Request): Promise<Response> {
     const ctx = new EvaContext(req);
     const url = new URL(req.url);
-    const method = req.method as Method;
+    const method = req.method;
     const path = url.pathname;
+
+    // Method validation: unknown verbs are rejected up front with 501.
+    if (!isMethod(method)) {
+      return new Response('Not Implemented', { status: 501 });
+    }
 
     const query: Record<string, string> = {};
     for (const [key, value] of url.searchParams) {
