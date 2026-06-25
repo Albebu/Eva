@@ -35,7 +35,7 @@ jobs:
           rsync -rvz --delete \
           --chown=deploy:www-data \
             --chmod=D750,F640 \
-            dist/ package.json public/ \
+            dist/ package.json public \
             -e "ssh -i ~/.ssh/deploy_key" \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/eva/
 
