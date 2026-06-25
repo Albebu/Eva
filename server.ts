@@ -5,8 +5,13 @@
 
 import { Eva } from './src/eva';
 import { cors } from './src/cors';
-import { EvaNotFoundError, EvaUnauthorizedError } from './src/errors';
+import {
+  EvaBadRequestError,
+  EvaNotFoundError,
+  EvaUnauthorizedError,
+} from './src/errors';
 import type { EvaMiddleware } from './src/types';
+import { serveStatic } from './src/static';
 
 const app = new Eva();
 
@@ -37,9 +42,7 @@ app.onError((error, _ctx) => {
 
 // | Static route + JSON response |
 
-app.get('/', (ctx) => {
-  return ctx.toJson({ message: 'Eva up and running' });
-});
+app.get('/', serveStatic('public/'));
 
 // | Text response + custom header |
 
@@ -62,7 +65,7 @@ app.get('/search', (ctx) => {
 
 // | Wildcard — consumes the rest of the path into params['*'] |
 
-app.get('/static/*', (ctx) => {
+app.get('/wildcard/*', (ctx) => {
   return ctx.toJson({ file: ctx.params['*'] });
 });
 
