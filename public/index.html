@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eva — a tiny HTTP framework for Bun</title>
+    <meta
+      name="description"
+      content="Eva is a lightweight, dependency-free HTTP framework for Bun, built from scratch with TypeScript."
+    />
+    <style>
+      :root {
+        --bg: #eceae5;
+        --panel: #f4f2ee;
+        --border: #d9d6cf;
+        --text: #2a2926;
+        --muted: #6b6862;
+        --accent: #555049;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+          sans-serif;
+        line-height: 1.6;
+      }
+      .wrap {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      a {
+        color: var(--accent);
+      }
+      code,
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      header.hero {
+        text-align: center;
+        padding: 72px 0 48px;
+      }
+      header.hero h1 {
+        font-size: 44px;
+        margin: 0;
+        letter-spacing: -0.5px;
+        font-weight: 600;
+      }
+      header.hero .tagline {
+        color: var(--muted);
+        font-size: 17px;
+        margin: 10px auto 18px;
+        max-width: 520px;
+      }
+      .gh {
+        display: inline-flex;
+        color: var(--muted);
+      }
+      .gh:hover {
+        color: var(--text);
+      }
+      .gh svg {
+        width: 24px;
+        height: 24px;
+      }
+      main section {
+        padding: 36px 0;
+        border-top: 1px solid var(--border);
+      }
+      h2 {
+        font-size: 21px;
+        font-weight: 600;
+        margin: 0 0 16px;
+      }
+      h3 {
+        font-size: 13px;
+        margin: 22px 0 8px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      pre {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 16px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      p code,
+      li code,
+      td code {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 0.9em;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .m {
+        display: inline-block;
+        min-width: 44px;
+        text-align: center;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        background: var(--panel);
+      }
+      .pipeline {
+        color: var(--muted);
+      }
+      footer {
+        text-align: center;
+        color: var(--muted);
+        padding: 32px 0;
+        font-size: 14px;
+        border-top: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <h1>Eva</h1>
+        <p class="tagline">
+          A lightweight, dependency-free HTTP framework for Bun, built from
+          scratch in TypeScript.
+        </p>
+        <a class="gh" href="https://github.com/Albebu/eva" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section id="quick-start">
+        <h2>Quick start</h2>
+        <pre><code>import { Eva } from './src/eva';
+import { cors } from './src/cors';
+
+const app = new Eva();
+
+// Global middleware
+app.use(cors({ origin: '*' }));
+
+// Routes
+app.get('/users/:id', (ctx) =&gt; {
+  return ctx.toJson({ id: ctx.params.id });
+});
+
+app.serve(3000);</code></pre>
+      </section>
+
+      <section id="features">
+        <h2>Features</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Trie routing</td>
+              <td>Per-method prefix tree with params, optional params and a trailing wildcard.</td>
+            </tr>
+            <tr>
+              <td>Middleware</td>
+              <td>Global and route-level, may short-circuit with a Response.</td>
+            </tr>
+            <tr>
+              <td>Built-in CORS</td>
+              <td>Exact-match origins (string, array or <code>*</code>), preflight handled.</td>
+            </tr>
+            <tr>
+              <td>Error boundary</td>
+              <td>Typed <code>EvaError</code> hierarchy mapped to HTTP status codes.</td>
+            </tr>
+            <tr>
+              <td>Context</td>
+              <td>Lazy, cached access to params, query and the request body.</td>
+            </tr>
+            <tr>
+              <td>HEAD &amp; 405</td>
+              <td>Automatic HEAD on any GET route; 405 with an <code>Allow</code> header.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="routes">
+        <h2>Live routes</h2>
+        <p class="pipeline">GET routes are clickable. Others need a tool (curl / Postman).</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Route</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/health"><code>/health</code></a></td>
+              <td>Plain text <code>ok</code> + custom <code>X-Eva-Version</code> header</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/echo/42"><code>/echo/:id</code></a></td>
+              <td>Route param echoed back as JSON</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/search?q=hello&amp;page=2"><code>/search</code></a></td>
+              <td>Query string returned as JSON</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/wildcard/a/b/c"><code>/wildcard/*</code></a></td>
+              <td>Wildcard captures the rest of the path</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/users/1"><code>/users/:id</code></a></td>
+              <td>JSON user — id <code>999</code> throws a 404</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/boom"><code>/boom</code></a></td>
+              <td>Throws — exercises the 500 error boundary</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><code>/admin</code></td>
+              <td>Needs header <code>Authorization: secret</code> — else 401</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/old-path"><code>/old-path</code></a></td>
+              <td>301 redirect to <code>/</code></td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/tasks"><code>/tasks</code></a></td>
+              <td>List tasks</td>
+            </tr>
+            <tr>
+              <td><span class="m post">POST</span></td>
+              <td><code>/tasks</code></td>
+              <td>Create from a JSON array body — max 5 items</td>
+            </tr>
+            <tr>
+              <td><span class="m post">POST</span></td>
+              <td><code>/items</code></td>
+              <td>Echoes the JSON body back with status 201</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/api/v1/products"><code>/api/v1/products</code></a></td>
+              <td>Mounted child instance — product list</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/api/v1/products/1"><code>/api/v1/products/:id</code></a></td>
+              <td>Single product by id</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="api">
+        <h2>API reference</h2>
+
+        <h3>Eva</h3>
+        <pre><code>app.get(route, handler);                 // also post, put, patch, delete, options
+app.get(route, [middleware], handler);   // route-level middleware
+app.route(route).get(h).post(h);         // group methods on one path
+
+app.use(middleware);                     // global middleware
+app.onError(handler);                    // error boundary
+app.serve(port?, callback?);             // start Bun server, returns it</code></pre>
+
+        <h3>Context</h3>
+        <pre><code>ctx.params;                  // route params (percent-decoded)
+ctx.query;                   // query string object
+ctx.req;                     // original Request
+await ctx.json();            // parse request body as JSON (cached)
+await ctx.text();            // raw request body (cached)
+ctx.getHeader(name);         // read a request header
+ctx.setHeader(name, value);  // set a response header
+
+ctx.toJson(data, opts);      // JSON response
+ctx.toText(text, opts);      // text response
+ctx.redirect(url, status);   // redirect (default 301)
+ctx.notFound();              // 404 response</code></pre>
+
+        <h3>Middleware</h3>
+        <pre><code>type EvaMiddleware = (
+  ctx: EvaContext,
+  next: () =&gt; Promise&lt;void&gt;,
+) =&gt; Promise&lt;Response | void&gt;;
+
+// Return a Response to short-circuit; call next() to continue the chain.</code></pre>
+      </section>
+
+      <section id="architecture">
+        <h2>Architecture</h2>
+        <pre class="pipeline"><code>Request
+  →  Global middleware chain
+  →  Route matching (trie)
+  →  Route-level middleware
+  →  Handler
+  →  Response
+        (errors → EvaError status, or onError, or a generic 500)</code></pre>
+      </section>
+
+      <section id="testing">
+        <h2>Testing</h2>
+        <pre><code>bun test            # run the suite
+bun test --watch    # re-run on change
+bun test --coverage # coverage report</code></pre>
+        <p>
+          Tests live next to the code as <code>*.test.ts</code> and use
+          <code>bun:test</code> — zero config, Jest-compatible.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      Eva · MIT ·
+      <a href="https://github.com/Albebu/eva">github.com/Albebu/eva</a>
+    </footer>
+  </body>
+</html>
