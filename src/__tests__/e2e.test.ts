@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 // Bun.serve parsing actual HTTP bytes and Eva answering over TCP.
 describe('e2e', () => {
   let server: ReturnType<Eva['serve']>;
+  let number: number = 0;
 
   beforeAll(() => {
     const app = new Eva();
@@ -14,7 +15,9 @@ describe('e2e', () => {
     // Port 0 = "OS, pick any free port" — no collisions with dev servers
     // or parallel CI jobs. serve() returning the server (phase 0) is what
     // lets us read the assigned port back.
-    server = app.serve(0);
+    server = app.serve(0, () => {
+      number = 1;
+    });
   });
 
   afterAll(() => {
@@ -26,5 +29,9 @@ describe('e2e', () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ id: '42' });
+  });
+
+  it('shot the callback', async () => {
+    expect(number).toBe(1);
   });
 });
