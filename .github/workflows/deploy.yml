@@ -38,3 +38,11 @@ jobs:
             dist/ package.json \
             -e "ssh -i ~/.ssh/deploy_key" \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/eva/
+
+      - name: Restart eva service
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: sudo systemctl restart eva
