@@ -113,9 +113,13 @@ app.get('/old-path', (ctx) => {
 app
   .route('/tasks')
   .get((ctx) => ctx.toJson({ tasks: [] }))
-  .post(async (ctx) =>
-    ctx.toJson({ created: await ctx.json() }, { status: 201 }),
-  );
+  .post(async (ctx) => {
+    const items = await ctx.json();
+    if (!Array.isArray(items) || items.length > 5) {
+      throw new EvaBadRequestError('"items" must be an array of at most 5');
+    }
+    return ctx.toJson({ created: items }, { status: 201 });
+  });
 
 // | Composition — mount a child instance under a prefix |
 // Known limitation: route-level middlewares are not copied yet (see roadmap).
