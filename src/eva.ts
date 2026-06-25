@@ -273,19 +273,20 @@ export class Eva {
         const match = this._router.match(methodToSearch, path);
 
         if (!match) {
-          const methodsToSearch: Method[] = [
-            'GET',
-            'POST',
-            'PUT',
-            'PATCH',
-            'DELETE',
-          ];
+          // Build the Allow list from every method the resource really
+          // supports. HEAD is never registered in the trie (it is served by
+          // the GET handler), so it is derived from a GET route existing
+          // rather than matched directly.
           const availableMethods: string[] = [];
 
-          for (const m of methodsToSearch) {
-            if (m !== methodToSearch && this._router.match(m, path)) {
+          for (const m of Object.values(METHOD)) {
+            if (m === 'HEAD') continue; // derived from GET below
+            if (this._router.match(m, path)) {
               availableMethods.push(m);
             }
+          }
+          if (availableMethods.includes('GET')) {
+            availableMethods.push('HEAD');
           }
 
           response =

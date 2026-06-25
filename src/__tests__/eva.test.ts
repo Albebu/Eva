@@ -43,8 +43,21 @@ describe('Eva.handle', () => {
 
       expect(res.status).toBe(405);
       expect(await res.text()).toContain('Not Allowed');
-      expect(res.headers.get('Allow')).toBe('GET');
+      expect(res.headers.get('Allow')).toBe('GET, HEAD');
       expect(res.headers.get('Content-Type')).toBe('text/plain');
+    });
+
+    it('includes OPTIONS and derived HEAD in the 405 Allow header', async () => {
+      app.get('/', makeHandler());
+      app.options('/', makeHandler());
+
+      const res = await app.handle(req('/', { method: 'POST' }));
+
+      expect(res.status).toBe(405);
+      const allow = res.headers.get('Allow')!.split(', ');
+      expect(allow).toContain('GET');
+      expect(allow).toContain('OPTIONS');
+      expect(allow).toContain('HEAD'); // never registered, derived from GET
     });
 
     it('answers HEAD with the GET headers and an empty body', async () => {
