@@ -344,10 +344,11 @@ export class Eva {
    * and `server.stop()`.
    */
   serve(port?: number, callback?: () => void): Bun.Server<unknown> {
-    return Bun.serve({
-      port: port ?? 9999, //TODO: Poner el puerto 3000 por defecto.
+    const server = Bun.serve({
+      port: port ?? 9999,
       fetch: async (req) => this.handle(req),
-      ...(callback ? { onListen: callback } : {}), //TODO: No funciona el callback
     });
+    callback?.();
+    return server;
   }
 }

@@ -148,5 +148,6 @@ products.toParent(app, '/api/v1');
 
 // | Start — serve() returns the Bun server (port, stop(), ...) |
 
-const server = app.serve();
-console.log(`Eva listening on http://localhost:${server.port}`);
+app.serve(9999, () => {
+  console.log(`Eva listening on http://localhost:${9999}`);
+});
