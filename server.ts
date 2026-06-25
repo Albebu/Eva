@@ -28,6 +28,11 @@ app.use(async (ctx, next) => {
 // | CORS — built-in middleware. Exact-match origins (string, array or '*') |
 
 app.use(cors({ origin: '*' }));
+app.use(async (ctx, next) => {
+  console.log('Request: ', ctx.path);
+
+  await next();
+});
 
 // | Error boundary — handles anything that is NOT an EvaError |
 // EvaError subclasses skip this: they map to their own status automatically.

@@ -106,130 +106,67 @@ export class Eva {
     return this;
   }
 
-  /** Registers a GET route. Optional second argument: route middlewares. */
-  get<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
-  get<T extends EvaRouteOptions>(
-    route: string,
-    middlewares: EvaMiddleware[],
-    handler: Handler<T>,
-  ): Eva;
-  get<T extends EvaRouteOptions>(
+  private makeRoute<T extends EvaRouteOptions>(
+    method: Method,
     route: string,
     ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
   ): Eva {
     if (Array.isArray(args[0])) {
       const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute('GET', route, handler, ...middlewares);
+      this._router.addRoute(method, route, handler, ...middlewares);
     } else {
       const [handler] = args as [Handler<T>];
-      this._router.addRoute('GET', route, handler);
+      this._router.addRoute(method, route, handler);
     }
     return this;
+  }
+
+  /** Registers a GET route. Optional second argument: route middlewares. */
+  get<T extends EvaRouteOptions>(
+    route: string,
+    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+  ): Eva {
+    return this.makeRoute('GET', route, ...args);
   }
 
   /** Registers a POST route. Optional second argument: route middlewares. */
-  post<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
-  post<T extends EvaRouteOptions>(
-    route: string,
-    middlewares: EvaMiddleware[],
-    handler: Handler<T>,
-  ): Eva;
   post<T extends EvaRouteOptions>(
     route: string,
     ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
   ): Eva {
-    if (Array.isArray(args[0])) {
-      const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute('POST', route, handler, ...middlewares);
-    } else {
-      const [handler] = args as [Handler<T>];
-      this._router.addRoute('POST', route, handler);
-    }
-    return this;
+    return this.makeRoute('POST', route, ...args);
   }
 
   /** Registers a PUT route. Optional second argument: route middlewares. */
-  put<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
-  put<T extends EvaRouteOptions>(
-    route: string,
-    middlewares: EvaMiddleware[],
-    handler: Handler<T>,
-  ): Eva;
   put<T extends EvaRouteOptions>(
     route: string,
     ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
   ): Eva {
-    if (Array.isArray(args[0])) {
-      const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute('PUT', route, handler, ...middlewares);
-    } else {
-      const [handler] = args as [Handler<T>];
-      this._router.addRoute('PUT', route, handler);
-    }
-    return this;
+    return this.makeRoute('PUT', route, ...args);
   }
 
   /** Registers a PATCH route. Optional second argument: route middlewares. */
-  patch<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
-  patch<T extends EvaRouteOptions>(
-    route: string,
-    middlewares: EvaMiddleware[],
-    handler: Handler<T>,
-  ): Eva;
   patch<T extends EvaRouteOptions>(
     route: string,
     ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
   ): Eva {
-    if (Array.isArray(args[0])) {
-      const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute('PATCH', route, handler, ...middlewares);
-    } else {
-      const [handler] = args as [Handler<T>];
-      this._router.addRoute('PATCH', route, handler);
-    }
-    return this;
+    return this.makeRoute('PATCH', route, ...args);
   }
 
   /** Registers a DELETE route. Optional second argument: route middlewares. */
-  delete<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
-  delete<T extends EvaRouteOptions>(
-    route: string,
-    middlewares: EvaMiddleware[],
-    handler: Handler<T>,
-  ): Eva;
   delete<T extends EvaRouteOptions>(
     route: string,
     ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
   ): Eva {
-    if (Array.isArray(args[0])) {
-      const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute('DELETE', route, handler, ...middlewares);
-    } else {
-      const [handler] = args as [Handler<T>];
-      this._router.addRoute('DELETE', route, handler);
-    }
-    return this;
+    return this.makeRoute('DELETE', route, ...args);
   }
 
   /** Registers an OPTIONS route. Optional second argument: route middlewares. */
-  options<T extends EvaRouteOptions>(route: string, handler: Handler<T>): Eva;
-  options<T extends EvaRouteOptions>(
-    route: string,
-    middlewares: EvaMiddleware[],
-    handler: Handler<T>,
-  ): Eva;
   options<T extends EvaRouteOptions>(
     route: string,
     ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
   ): Eva {
-    if (Array.isArray(args[0])) {
-      const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute('OPTIONS', route, handler, ...middlewares);
-    } else {
-      const [handler] = args as [Handler<T>];
-      this._router.addRoute('OPTIONS', route, handler);
-    }
-    return this;
+    return this.makeRoute('OPTIONS', route, ...args);
   }
 
   /**
