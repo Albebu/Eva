@@ -11,7 +11,9 @@
   "main": "src/eva.ts",
   "scripts": {
     "dev": "bun run --watch server.ts",
-    "build": "bun build src/eva.ts --target=browser --outdir=dist",
+    "build": "bun build server.ts --target=bun --outdir=dist --minify",
+    "start": "bun dist/server.js",
+    "build:lib": "bun build src/eva.ts --target=browser --outdir=dist",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
