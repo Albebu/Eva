@@ -138,15 +138,13 @@ describe('Eva.handle', () => {
       }
     });
 
-    it('accepts an optional middlewares array in the builder verbs', async () => {
+    it('accepts optional middlewares before the handler in the builder verbs', async () => {
       const order: string[] = [];
       app.route('/guarded').get(
-        [
-          async (_ctx, next) => {
-            order.push('middleware');
-            await next();
-          },
-        ],
+        async (_ctx, next) => {
+          order.push('middleware');
+          await next();
+        },
         (ctx) => {
           order.push('handler');
           return ctx.toText('ok');
@@ -190,12 +188,10 @@ describe('Eva.handle', () => {
       });
       app.get(
         '/',
-        [
-          async (_ctx, next) => {
-            order.push('route');
-            await next();
-          },
-        ],
+        async (_ctx, next) => {
+          order.push('route');
+          await next();
+        },
         () => {
           order.push('handler');
           return new Response('ok');
@@ -205,6 +201,24 @@ describe('Eva.handle', () => {
       await app.handle(req('/'));
 
       expect(order).toEqual(['global', 'route', 'handler']);
+    });
+
+    it('accepts several route middlewares via spread, in order, handler last', async () => {
+      const order: string[] = [];
+      const mw =
+        (tag: string) =>
+        async (_ctx: EvaContext, next: () => Promise<void>) => {
+          order.push(tag);
+          await next();
+        };
+      app.get('/', mw('a'), mw('b'), mw('c'), () => {
+        order.push('handler');
+        return new Response('ok');
+      });
+
+      await app.handle(req('/'));
+
+      expect(order).toEqual(['a', 'b', 'c', 'handler']);
     });
 
     it('runs global middlewares before routing, even when no route matches', async () => {
@@ -280,12 +294,10 @@ describe('Eva.handle', () => {
       const order: string[] = [];
       app.delete(
         '/resource',
-        [
-          async (_ctx, next) => {
-            order.push('middleware');
-            await next();
-          },
-        ],
+        async (_ctx, next) => {
+          order.push('middleware');
+          await next();
+        },
         (ctx) => {
           order.push('handler');
           return ctx.toText('deleted');
@@ -464,12 +476,10 @@ describe('Eva.handle', () => {
       const child = new Eva();
       child.get(
         '/users',
-        [
-          async (_ctx, next) => {
-            order.push('middleware');
-            await next();
-          },
-        ],
+        async (_ctx, next) => {
+          order.push('middleware');
+          await next();
+        },
         (ctx) => {
           order.push('handler');
           return ctx.toText('ok');

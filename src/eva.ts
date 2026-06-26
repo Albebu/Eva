@@ -17,23 +17,30 @@ function isMethod(method: string): method is Method {
 }
 
 /**
- * Fluent registrar returned by `Eva.route()`. Object literals cannot carry
- * overload signatures, so they live here and the implementation uses a
- * union-args function typed against this interface.
+ * Splits the variadic `[...middlewares, handler]` tuple into its two parts.
+ */
+function splitArgs<T extends EvaRouteOptions>(
+  args: [...EvaMiddleware[], Handler<T>],
+): [EvaMiddleware[], Handler<T>] {
+  // No se como hacerlo sin el as aquí la verdad.
+  // La única solución que se me ocurre es separar handler de middlewares en la firma de cada método
+  // pero la forma actual es más bonita a mi criterio.
+  const handler = args[args.length - 1] as Handler<T>;
+  const middlewares = args.slice(0, -1) as EvaMiddleware[];
+  return [middlewares, handler];
+}
+
+/**
+ * Fluent registrar returned by `Eva.route()`. Each verb takes optional
+ * middlewares followed by the handler (handler last).
  */
 export interface RouteBuilder<T extends EvaRouteOptions = {}> {
-  get(handler: Handler<T>): RouteBuilder<T>;
-  get(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
-  post(handler: Handler<T>): RouteBuilder<T>;
-  post(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
-  put(handler: Handler<T>): RouteBuilder<T>;
-  put(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
-  patch(handler: Handler<T>): RouteBuilder<T>;
-  patch(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
-  delete(handler: Handler<T>): RouteBuilder<T>;
-  delete(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
-  options(handler: Handler<T>): RouteBuilder<T>;
-  options(middlewares: EvaMiddleware[], handler: Handler<T>): RouteBuilder<T>;
+  get(...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T>;
+  post(...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T>;
+  put(...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T>;
+  patch(...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T>;
+  delete(...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T>;
+  options(...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T>;
 }
 
 export class Eva {
@@ -114,89 +121,77 @@ export class Eva {
   private makeRoute<T extends EvaRouteOptions>(
     method: Method,
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
-    if (Array.isArray(args[0])) {
-      const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-      this._router.addRoute(method, route, handler, ...middlewares);
-    } else {
-      const [handler] = args as [Handler<T>];
-      this._router.addRoute(method, route, handler);
-    }
+    const [middlewares, handler] = splitArgs(args);
+    this._router.addRoute(method, route, handler, ...middlewares);
     return this;
   }
 
-  /** Registers a GET route. Optional second argument: route middlewares. */
+  /** Registers a GET route. Optional middlewares before the handler. */
   get<T extends EvaRouteOptions>(
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
     return this.makeRoute('GET', route, ...args);
   }
 
-  /** Registers a POST route. Optional second argument: route middlewares. */
+  /** Registers a POST route. Optional middlewares before the handler. */
   post<T extends EvaRouteOptions>(
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
     return this.makeRoute('POST', route, ...args);
   }
 
-  /** Registers a PUT route. Optional second argument: route middlewares. */
+  /** Registers a PUT route. Optional middlewares before the handler. */
   put<T extends EvaRouteOptions>(
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
     return this.makeRoute('PUT', route, ...args);
   }
 
-  /** Registers a PATCH route. Optional second argument: route middlewares. */
+  /** Registers a PATCH route. Optional middlewares before the handler. */
   patch<T extends EvaRouteOptions>(
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
     return this.makeRoute('PATCH', route, ...args);
   }
 
-  /** Registers a DELETE route. Optional second argument: route middlewares. */
+  /** Registers a DELETE route. Optional middlewares before the handler. */
   delete<T extends EvaRouteOptions>(
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
     return this.makeRoute('DELETE', route, ...args);
   }
 
-  /** Registers an OPTIONS route. Optional second argument: route middlewares. */
+  /** Registers an OPTIONS route. Optional middlewares before the handler. */
   options<T extends EvaRouteOptions>(
     route: string,
-    ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
+    ...args: [...EvaMiddleware[], Handler<T>]
   ): Eva {
     return this.makeRoute('OPTIONS', route, ...args);
   }
 
   /**
    * Fluent builder to group several methods on one path. Every verb mirrors
-   * the top-level API: an optional middlewares array before the handler.
+   * the top-level API: optional middlewares before the handler (handler last).
    *
    * ```ts
    * app
    *   .route('/tasks')
    *   .get(listTasks)
-   *   .post([requireAuth], createTask);
+   *   .post(requireAuth, createTask);
    * ```
    */
   route<T extends EvaRouteOptions>(route: string): RouteBuilder<T> {
     const makeMethod = (method: Method) => {
-      return (
-        ...args: [Handler<T>] | [EvaMiddleware[], Handler<T>]
-      ): RouteBuilder<T> => {
-        if (Array.isArray(args[0])) {
-          const [middlewares, handler] = args as [EvaMiddleware[], Handler<T>];
-          this._router.addRoute(method, route, handler, ...middlewares);
-        } else {
-          const [handler] = args as [Handler<T>];
-          this._router.addRoute(method, route, handler);
-        }
+      return (...args: [...EvaMiddleware[], Handler<T>]): RouteBuilder<T> => {
+        const [middlewares, handler] = splitArgs(args);
+        this._router.addRoute(method, route, handler, ...middlewares);
         return builder;
       };
     };

@@ -115,7 +115,7 @@ const requireAuth: EvaMiddleware = async (ctx, next) => {
   await next();
 };
 
-app.get('/admin', [requireAuth], (ctx) => {
+app.get('/admin', requireAuth, (ctx) => {
   return ctx.toText('welcome, admin');
 });
 
@@ -130,7 +130,7 @@ app.get('/old-path', (ctx) => {
 app
   .route('/tasks')
   .get((ctx) => ctx.toJson({ tasks: [] }))
-  .post([bodyLimit(100 * 1024)], async (ctx) => {
+  .post(bodyLimit(100 * 1024), async (ctx) => {
     const items = await ctx.json();
     if (!Array.isArray(items) || items.length > 5) {
       throw new EvaBadRequestError('"items" must be an array of at most 5');

@@ -313,7 +313,7 @@ app.serve(3000);</code></pre>
 
         <h3>Eva</h3>
         <pre><code>app.get(route, handler);                 // also post, put, patch, delete, options
-app.get(route, [middleware], handler);   // route-level middleware
+app.get(route, ...middlewares, handler); // route-level middleware (handler last)
 app.route(route).get(h).post(h);         // group methods on one path
 
 app.use(middleware);                     // global middleware
