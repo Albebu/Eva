@@ -12,6 +12,7 @@ import {
 } from './src/errors';
 import type { EvaMiddleware } from './src/types';
 import { serveStatic } from './src/static';
+import { bodyLimit } from './src/body-limit';
 
 const app = new Eva();
 
@@ -81,6 +82,17 @@ app.post('/items', async (ctx) => {
   return ctx.toJson({ created: body }, { status: 201 });
 });
 
+// | Cookies — read incoming with getCookies(), set with setCookie() |
+
+app.get('/cookies', (ctx) => {
+  ctx.setCookie({
+    name: 'session',
+    value: 'abc123',
+    options: { path: '/', httpOnly: true, secure: true },
+  });
+  return ctx.toJson({ received: ctx.getCookies() });
+});
+
 // | Throwing errors — EvaError subclasses become HTTP responses |
 
 app.get('/users/:id', (ctx) => {
@@ -118,7 +130,7 @@ app.get('/old-path', (ctx) => {
 app
   .route('/tasks')
   .get((ctx) => ctx.toJson({ tasks: [] }))
-  .post(async (ctx) => {
+  .post([bodyLimit(100 * 1024)], async (ctx) => {
     const items = await ctx.json();
     if (!Array.isArray(items) || items.length > 5) {
       throw new EvaBadRequestError('"items" must be an array of at most 5');

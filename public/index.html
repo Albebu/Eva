@@ -207,6 +207,14 @@ app.serve(3000);</code></pre>
               <td>Lazy, cached access to params, query and the request body.</td>
             </tr>
             <tr>
+              <td>Cookies</td>
+              <td>Parse the <code>Cookie</code> header into <code>ctx.getCookies()</code>; set <code>Set-Cookie</code> via <code>ctx.setCookie()</code>.</td>
+            </tr>
+            <tr>
+              <td>Body limit</td>
+              <td>Middleware capping request body size; replies <code>413</code> over the limit.</td>
+            </tr>
+            <tr>
               <td>HEAD &amp; 405</td>
               <td>Automatic HEAD on any GET route; 405 with an <code>Allow</code> header.</td>
             </tr>
@@ -274,7 +282,12 @@ app.serve(3000);</code></pre>
             <tr>
               <td><span class="m post">POST</span></td>
               <td><code>/tasks</code></td>
-              <td>Create from a JSON array body — max 5 items</td>
+              <td>Create from a JSON array body — max 5 items, 100&nbsp;KB body limit</td>
+            </tr>
+            <tr>
+              <td><span class="m get">GET</span></td>
+              <td><a href="/cookies"><code>/cookies</code></a></td>
+              <td>Echoes incoming cookies and sets a <code>session</code> cookie</td>
             </tr>
             <tr>
               <td><span class="m post">POST</span></td>
@@ -314,7 +327,10 @@ ctx.req;                     // original Request
 await ctx.json();            // parse request body as JSON (cached)
 await ctx.text();            // raw request body (cached)
 ctx.getHeader(name);         // read a request header
+ctx.getCookies();            // parsed request cookies (cached)
 ctx.setHeader(name, value);  // set a response header
+ctx.appendHeader(name, val); // append a response header (multi-value)
+ctx.setCookie({ name, value, options }); // add a Set-Cookie header
 
 ctx.toJson(data, opts);      // JSON response
 ctx.toText(text, opts);      // text response
