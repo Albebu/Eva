@@ -297,5 +297,50 @@ describe('Router', () => {
 
       expect(match?.middlewares).toEqual([middleware]);
     });
+
+    // Policy (issue #7): middleware scope is INHERITED, Express-style. A
+    // prefix's middleware runs for every nested route, static or dynamic.
+    it('inherits a prefix middleware on a deeper static route', () => {
+      const mw: EvaMiddleware = (_ctx, next) => next();
+      router.addRoute('GET', '/users', makeHandler(), mw);
+      router.addRoute('GET', '/users/me', makeHandler());
+
+      const match = router.match('GET', '/users/me');
+
+      expect(match?.middlewares).toEqual([mw]);
+    });
+
+    it('inherits a prefix middleware on a deeper dynamic (param) route', () => {
+      const mw: EvaMiddleware = (_ctx, next) => next();
+      router.addRoute('GET', '/users', makeHandler(), mw);
+      router.addRoute('GET', '/users/:id', makeHandler());
+
+      const match = router.match('GET', '/users/42');
+
+      expect(match?.middlewares).toEqual([mw]);
+      expect(match?.params).toEqual({ id: '42' });
+    });
+
+    it('accumulates middlewares outermost-first along the walk', () => {
+      const outer: EvaMiddleware = (_ctx, next) => next();
+      const inner: EvaMiddleware = (_ctx, next) => next();
+      router.addRoute('GET', '/users', makeHandler(), outer);
+      router.addRoute('GET', '/users/:id', makeHandler(), inner);
+
+      const match = router.match('GET', '/users/42');
+
+      expect(match?.middlewares).toEqual([outer, inner]);
+    });
+
+    it('does not leak abandoned-branch middlewares onto a wildcard fallback', () => {
+      const branchMw: EvaMiddleware = (_ctx, next) => next();
+      const wildMw: EvaMiddleware = (_ctx, next) => next();
+      router.addRoute('GET', '/files', makeHandler(), branchMw);
+      router.addRoute('GET', '/files/*', makeHandler(), wildMw);
+
+      const match = router.match('GET', '/files/a/b');
+
+      expect(match?.middlewares).toEqual([wildMw]);
+    });
   });
 });

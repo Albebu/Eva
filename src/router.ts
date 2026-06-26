@@ -146,6 +146,14 @@ export class Router {
    * (raw, NOT percent-decoded — decoding is the HTTP layer's job) and the
    * route-level middlewares collected along the way, or null if nothing
    * matches. Precedence per segment: static > param > wildcard.
+   *
+   * Middleware scope — INHERITED (Express-style mounting), deliberate policy:
+   * a middleware registered on a prefix runs for every route nested under it,
+   * static OR dynamic. So `app.get('/users', auth, h)` makes `auth` run for
+   * `/users`, `/users/:id`, `/users/:id/posts`, etc. Middlewares accumulate in
+   * walk order (outermost first), so an outer prefix's middleware runs before a
+   * deeper one's. The only exception is the wildcard fallback: a route reached
+   * via `/*` gets only its own middlewares, not those of the abandoned branch.
    */
   match(method: Method, path: string): MatchResult | null {
     const segments = Router.segments(path);
