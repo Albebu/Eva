@@ -178,8 +178,6 @@ describe('Eva.handle', () => {
       expect(order).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
-    // TODO(design): accept a single middleware or varargs via spread instead
-    // of forcing an array — revisit together with the phase 3 route API cleanup
     it('runs route middlewares after global middlewares', async () => {
       const order: string[] = [];
       app.use(async (_ctx, next) => {
