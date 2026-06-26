@@ -72,6 +72,14 @@ export class EvaContext<T extends EvaRouteOptions = {}> {
     return this._ctx.text();
   }
 
+  /**
+   * Parses the request body as form data (`application/x-www-form-urlencoded`
+   * or `multipart/form-data`) into a plain object. Cached, like `json()`.
+   */
+  async form<B = unknown>(): Promise<B> {
+    return this._ctx.form<B>();
+  }
+
   /** Sets a response header; applied to whichever response is built later. */
   setHeader(key: string, value: string): void {
     this._res.setHeader(key, value);

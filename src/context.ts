@@ -12,6 +12,7 @@ export class Context<T extends EvaRouteOptions = {}> {
   private _rawText: string | undefined = undefined;
   private _body: unknown = undefined;
   private _bodyParsed = false;
+  private _form: unknown = undefined;
 
   private _params: Record<string, string> = {};
   private _query: Record<string, string> = {};
@@ -90,6 +91,18 @@ export class Context<T extends EvaRouteOptions = {}> {
     }
     this._bodyParsed = true;
     return this._body as B;
+  }
+  async form<B = unknown>(): Promise<B> {
+    if (this._form === undefined) {
+      try {
+        // Marca como deprecated porque me recoge tipos de node en zed, en runtime use lo de bun así que no problemo
+        const raw = await this.req.formData();
+        this._form = Object.fromEntries(raw);
+      } catch {
+        throw new EvaBadRequestError('Malformed form data');
+      }
+    }
+    return this._form as B;
   }
 }
 

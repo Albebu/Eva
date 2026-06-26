@@ -416,6 +416,68 @@ describe('Eva.handle', () => {
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: 'Malformed JSON body' });
     });
+
+    it('parses an urlencoded body into an object through ctx.form()', async () => {
+      app.post('/', async (ctx) => ctx.toJson(await ctx.form()));
+
+      const res = await app.handle(
+        req('/', {
+          method: 'POST',
+          body: new URLSearchParams({ name: 'John', age: '30' }),
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ name: 'John', age: '30' });
+    });
+
+    it('parses a multipart body into an object through ctx.form()', async () => {
+      app.post('/', async (ctx) => ctx.toJson(await ctx.form()));
+
+      const body = new FormData();
+      body.append('name', 'John');
+      body.append('age', '30');
+
+      const res = await app.handle(req('/', { method: 'POST', body }));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ name: 'John', age: '30' });
+    });
+
+    it('returns the cached body when ctx.form() is called twice', async () => {
+      app.post('/', async (ctx) => {
+        const first = await ctx.form();
+        const second = await ctx.form();
+        return ctx.toJson({ same: first === second, body: first });
+      });
+
+      const res = await app.handle(
+        req('/', {
+          method: 'POST',
+          body: new URLSearchParams({ a: '1' }),
+        }),
+      );
+
+      expect(await res.json()).toEqual({ same: true, body: { a: '1' } });
+    });
+
+    it('returns a 400 HTTP code when the form body is malformed', async () => {
+      app.post('/', async (ctx) => {
+        await ctx.form();
+        return ctx.toJson({ message: 'ok' });
+      });
+
+      const res = await app.handle(
+        req('/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"name":"a"}',
+        }),
+      );
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Malformed form data' });
+    });
   });
 
   describe('error handling', () => {
