@@ -15,6 +15,7 @@ export class Context<T extends EvaRouteOptions = {}> {
 
   private _params: Record<string, string> = {};
   private _query: Record<string, string> = {};
+  private _cookies: Record<string, string> | null = null;
 
   constructor(req: Request) {
     this.req = req;
@@ -42,6 +43,31 @@ export class Context<T extends EvaRouteOptions = {}> {
 
   getHeader(header: string): string | null {
     return this.req.headers.get(header);
+  }
+
+  getCookies(): Record<string, string> {
+    if (this._cookies === null) {
+      const cookies = this.getHeader('Cookie');
+      const parsed: [string, string][] = [];
+
+      if (cookies) {
+        for (const c of cookies.split(';')) {
+          const trimmed = c.trim();
+          if (trimmed) {
+            const i = trimmed.indexOf('=');
+            if (i > 0) {
+              const name = trimmed.slice(0, i);
+              // Importante para que no metan valores raros en la cookie
+              const value = decodeURIComponent(trimmed.slice(i + 1));
+              parsed.push([name, value]);
+            }
+          }
+        }
+      }
+
+      this._cookies = Object.fromEntries(parsed);
+    }
+    return this._cookies;
   }
 
   async text(): Promise<string> {

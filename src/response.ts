@@ -1,3 +1,5 @@
+import { Cookie } from './types/cookies';
+
 /**
  * Response-side half of EvaContext. Accumulates headers set during the
  * middleware chain (`setHeader`) and stamps them onto whichever response
@@ -8,6 +10,27 @@ export class ResponseBuilder {
 
   setHeader(key: string, value: string): void {
     this._headers.set(key, value);
+  }
+
+  appendHeader(key: string, value: string): void {
+    this._headers.append(key, value);
+  }
+
+  setCookie({ name, value, options }: Cookie): void {
+    const cookie = `${name}=${encodeURIComponent(value)}`;
+    const attrs = [];
+    if (options) {
+      const { expires, path, domain, secure, httpOnly } = options;
+      if (expires) attrs.push(`Expires=${expires.toUTCString()}`);
+      if (path) attrs.push(`Path=${path}`);
+      if (domain) attrs.push(`Domain=${domain}`);
+      if (secure) attrs.push('Secure');
+      if (httpOnly) attrs.push('HttpOnly');
+    }
+    this._headers.append(
+      'Set-Cookie',
+      attrs.length ? `${cookie}; ${attrs.join('; ')}` : cookie,
+    );
   }
 
   getHeader(key: string): string | null {

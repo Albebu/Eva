@@ -1,6 +1,7 @@
 import { Context } from './context';
 import { ResponseBuilder } from './response';
 import type { EvaRouteOptions } from './types';
+import { Cookie } from './types/cookies';
 
 /**
  * What every handler and middleware receives. Facade over two halves:
@@ -57,6 +58,10 @@ export class EvaContext<T extends EvaRouteOptions = {}> {
     return this._ctx.getHeader(header);
   }
 
+  getCookies(): Record<string, string> {
+    return this._ctx.getCookies();
+  }
+
   /** Parses the request body as JSON. Cached: safe to call repeatedly. */
   async json<B = unknown>(): Promise<B> {
     return this._ctx.json<B>();
@@ -70,6 +75,14 @@ export class EvaContext<T extends EvaRouteOptions = {}> {
   /** Sets a response header; applied to whichever response is built later. */
   setHeader(key: string, value: string): void {
     this._res.setHeader(key, value);
+  }
+
+  setCookie({ name, value, options }: Cookie): void {
+    this._res.setCookie({ name, value, options });
+  }
+
+  appendHeader(key: string, value: string): void {
+    this._res.appendHeader(key, value);
   }
 
   /** Builds a JSON response (default status 200). */
