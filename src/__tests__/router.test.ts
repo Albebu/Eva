@@ -291,7 +291,9 @@ describe('Router', () => {
   describe('match — middlewares', () => {
     it('returns route-level middlewares in the match result', () => {
       const middleware: EvaMiddleware = (_ctx, next) => next();
-      router.addRoute('GET', '/users', makeHandler(), middleware);
+      router.addRoute('GET', '/users', makeHandler(), {
+        middlewares: [middleware],
+      });
 
       const match = router.match('GET', '/users');
 
@@ -302,7 +304,7 @@ describe('Router', () => {
     // prefix's middleware runs for every nested route, static or dynamic.
     it('inherits a prefix middleware on a deeper static route', () => {
       const mw: EvaMiddleware = (_ctx, next) => next();
-      router.addRoute('GET', '/users', makeHandler(), mw);
+      router.addRoute('GET', '/users', makeHandler(), { middlewares: [mw] });
       router.addRoute('GET', '/users/me', makeHandler());
 
       const match = router.match('GET', '/users/me');
@@ -312,7 +314,7 @@ describe('Router', () => {
 
     it('inherits a prefix middleware on a deeper dynamic (param) route', () => {
       const mw: EvaMiddleware = (_ctx, next) => next();
-      router.addRoute('GET', '/users', makeHandler(), mw);
+      router.addRoute('GET', '/users', makeHandler(), { middlewares: [mw] });
       router.addRoute('GET', '/users/:id', makeHandler());
 
       const match = router.match('GET', '/users/42');
@@ -324,8 +326,12 @@ describe('Router', () => {
     it('accumulates middlewares outermost-first along the walk', () => {
       const outer: EvaMiddleware = (_ctx, next) => next();
       const inner: EvaMiddleware = (_ctx, next) => next();
-      router.addRoute('GET', '/users', makeHandler(), outer);
-      router.addRoute('GET', '/users/:id', makeHandler(), inner);
+      router.addRoute('GET', '/users', makeHandler(), {
+        middlewares: [outer],
+      });
+      router.addRoute('GET', '/users/:id', makeHandler(), {
+        middlewares: [inner],
+      });
 
       const match = router.match('GET', '/users/42');
 
@@ -335,8 +341,12 @@ describe('Router', () => {
     it('does not leak abandoned-branch middlewares onto a wildcard fallback', () => {
       const branchMw: EvaMiddleware = (_ctx, next) => next();
       const wildMw: EvaMiddleware = (_ctx, next) => next();
-      router.addRoute('GET', '/files', makeHandler(), branchMw);
-      router.addRoute('GET', '/files/*', makeHandler(), wildMw);
+      router.addRoute('GET', '/files', makeHandler(), {
+        middlewares: [branchMw],
+      });
+      router.addRoute('GET', '/files/*', makeHandler(), {
+        middlewares: [wildMw],
+      });
 
       const match = router.match('GET', '/files/a/b');
 

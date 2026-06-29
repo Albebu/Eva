@@ -1,4 +1,4 @@
-import type { Handler } from './handler';
+import type { Handler, EvaSchema } from './handler';
 import type { EvaMiddleware } from './middleware';
 
 export interface TrieNode {
@@ -10,12 +10,14 @@ export interface TrieNode {
   wildcard?: TrieNode;
   children: Record<string, TrieNode>;
   middlewares?: EvaMiddleware[];
+  schema?: EvaSchema;
 }
 
 export interface MatchResult {
   handler: Handler;
   params: Record<string, string>;
   middlewares: EvaMiddleware[];
+  schema?: EvaSchema;
 }
 
 export const METHOD = {

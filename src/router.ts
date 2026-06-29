@@ -5,6 +5,7 @@ import type {
   Handler,
   MatchResult,
   Method,
+  RouteConfig,
   TrieNode,
 } from './types';
 
@@ -56,7 +57,7 @@ export class Router {
     method: Method,
     route: string,
     callback: Handler<T>,
-    ...middlewares: EvaMiddleware[]
+    config?: RouteConfig,
   ): void {
     if (!route.startsWith('/')) {
       throw new EvaConfigError(`Route ${route} must start with /`);
@@ -84,7 +85,7 @@ export class Router {
             .slice(0, end)
             .map((s) => (isOptional(s) ? s.slice(0, -1) : s))
             .join('/');
-        this.addRoute(method, variant, callback, ...middlewares);
+        this.addRoute(method, variant, callback, config);
       }
       return;
     }
@@ -136,8 +137,11 @@ export class Router {
     }
 
     node.handler = callback as Handler;
-    if (middlewares.length > 0) {
-      node.middlewares = middlewares;
+    if (config?.middlewares?.length) {
+      node.middlewares = config.middlewares;
+    }
+    if (config?.schema !== undefined) {
+      node.schema = config.schema;
     }
   }
 
@@ -176,6 +180,7 @@ export class Router {
         handler: wildcard.node.handler,
         params: { '*': segments.slice(wildcard.rest).join('/') },
         middlewares: wildcard.node.middlewares ?? [],
+        schema: wildcard.node.schema,
       };
     };
 
@@ -210,7 +215,7 @@ export class Router {
       middlewares.push(...node.middlewares);
     }
 
-    return { handler: node.handler, params, middlewares };
+    return { handler: node.handler, params, middlewares, schema: node.schema };
   }
 
   /** Exposes the raw tries. Debug/introspection only — do not mutate. */

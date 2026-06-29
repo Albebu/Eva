@@ -106,7 +106,7 @@ app.get('/boom', () => {
   throw new Error('unexpected failure');
 });
 
-// | Route-level middleware — array between the path and the handler |
+// | Route-level middleware — in the config object after the handler |
 
 const requireAuth: EvaMiddleware = async (ctx, next) => {
   if (ctx.getHeader('Authorization') !== 'secret') {
@@ -115,8 +115,8 @@ const requireAuth: EvaMiddleware = async (ctx, next) => {
   await next();
 };
 
-app.get('/admin', requireAuth, (ctx) => {
-  return ctx.toText('welcome, admin');
+app.get('/admin', (ctx) => ctx.toText('welcome, admin'), {
+  middlewares: [requireAuth],
 });
 
 // | Redirect |
@@ -130,13 +130,16 @@ app.get('/old-path', (ctx) => {
 app
   .route('/tasks')
   .get((ctx) => ctx.toJson({ tasks: [] }))
-  .post(bodyLimit(100 * 1024), async (ctx) => {
-    const items = await ctx.json();
-    if (!Array.isArray(items) || items.length > 5) {
-      throw new EvaBadRequestError('"items" must be an array of at most 5');
-    }
-    return ctx.toJson({ created: items }, { status: 201 });
-  });
+  .post(
+    async (ctx) => {
+      const items = await ctx.json();
+      if (!Array.isArray(items) || items.length > 5) {
+        throw new EvaBadRequestError('"items" must be an array of at most 5');
+      }
+      return ctx.toJson({ created: items }, { status: 201 });
+    },
+    { middlewares: [bodyLimit(100 * 1024)] },
+  );
 
 // | Composition — mount a child instance under a prefix |
 // Known limitation: route-level middlewares are not copied yet (see roadmap).

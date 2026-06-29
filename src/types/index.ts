@@ -1,6 +1,8 @@
 export type {
   Handler,
   EvaRouteOptions,
+  EvaSchema,
+  RouteConfig,
   JsonOptions,
   TextOptions,
   EvaErrorOptions,
