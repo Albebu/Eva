@@ -24,9 +24,32 @@ describe('bodyLimit middleware', () => {
 
   it('rejects a body larger than maxSize with 413', async () => {
     const res = await post('x'.repeat(11));
-    console.log(res);
     expect(res.status).toBe(413);
     expect(res.statusText).toBe('Payload Too Large');
+  });
+
+  // Regression: the limit check must NOT consume req.body, or the handler
+  // can no longer read it. An earlier version streamed the body to count
+  // bytes, which drained it and made ctx.json() throw "body already used"
+  // (silent 500). The handler below reads the body AFTER bodyLimit ran.
+  it('leaves the body readable for the handler', async () => {
+    const guarded = new Eva();
+    guarded.use(bodyLimit(1000));
+    guarded.post('/', async (ctx) => ctx.toJson(await ctx.json()));
+
+    const res = await guarded.handle(
+      new Request(`${BASE}/`, {
+        method: 'POST',
+        body: JSON.stringify({ hello: 'world' }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': '17',
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ hello: 'world' });
   });
 
   it('allows a body at or under maxSize', async () => {
