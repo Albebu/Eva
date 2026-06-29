@@ -34,12 +34,12 @@ eva.get('/', () => {
 });
 
 eva.get('/api/users/:id', (ctx) => {
-  return ctx.json({ id: ctx.params.id, name: 'Alex' });
+  return ctx.toJson({ id: ctx.params.id, name: 'Alex' });
 });
 
 eva.post('/api/users', async (ctx) => {
-  const body = await ctx.req.json();
-  return ctx.json({ created: true, data: body }, { status: 201 });
+  const body = await ctx.json();
+  return ctx.toJson({ created: true, data: body }, { status: 201 });
 });
 
 // Listen
@@ -69,21 +69,31 @@ eva.put(route, handler); // PUT
 eva.patch(route, handler); // PATCH
 eva.delete(route, handler); // DELETE
 eva.options(route, handler); // OPTIONS
-eva.head(route, handler); // HEAD
+// HEAD is derived automatically from each GET route — no eva.head()
 
 eva.use(middleware); // global middleware
-eva.listen(port, callback); // start server
+eva.serve(port, callback); // start server
 ```
 
 ### Context
 
 ```typescript
-ctx.json(data, options); // JSON response
-ctx.text(text, options); // text response
-ctx.getHeader(name); // get request header
-ctx.setHeader(name, value); // set response header
+// request
+ctx.json<B>(); // parse JSON body (cached)
+ctx.text(); // raw body text (cached)
+ctx.form<B>(); // parse form body (cached)
 ctx.params; // route parameters
+ctx.query; // parsed query string
+ctx.getHeader(name); // get request header
+ctx.getCookies(); // parsed request cookies
 ctx.req; // original Request
+
+// response
+ctx.toJson(data, options); // JSON response
+ctx.toText(data, options); // text response
+ctx.redirect(url, status); // redirect response
+ctx.setHeader(name, value); // set response header
+ctx.setCookie({ name, value, options }); // set response cookie
 ```
 
 ### Middleware
