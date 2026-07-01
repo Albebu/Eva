@@ -107,6 +107,12 @@ app.get('/schema/echo', (ctx) => ctx.toJson({ query: ctx.query }), {
   schemaOptions: { schema: echoSchema },
 });
 
+const idParams = t.object({ id: t.string() });
+
+app.get('/schema/thing/:id', (ctx) => ctx.toJson({ id: ctx.params.id }), {
+  schemaOptions: { params: idParams, EvaForbiddenError: true },
+});
+
 // | Cookies — read incoming with getCookies(), set with setCookie() |
 
 app.get('/cookies', (ctx) => {
