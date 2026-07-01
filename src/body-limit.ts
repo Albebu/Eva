@@ -8,11 +8,9 @@ import type { EvaMiddleware } from './types';
  */
 export function bodyLimit(maxSize: number): EvaMiddleware {
   return async (ctx, next) => {
-    // ponytail: trusts Content-Length. A lying or chunked client (no
-    // Content-Length) bypasses this. Reading the stream to count bytes is
-    // NOT an option here: it consumes req.body, so the handler's later
-    // ctx.json()/text() throws "body already used". Add a tee-and-count
-    // guard only if untrusted clients without Content-Length matter.
+    // ponytail: me fío del Content-Length. Un cliente que mienta o vaya
+    // chunked se lo salta. No leo el stream para contar bytes porque consume
+    // req.body y luego ctx.json()/text() peta con "body already used".
     const len = ctx.req.headers.get('content-length');
 
     if (len !== null && Number(len) > maxSize) {

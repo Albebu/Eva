@@ -40,8 +40,7 @@ export function cors(options: CorsOptions): EvaMiddleware {
         'Access-Control-Allow-Headers': allowedHeaders.join(', '),
       };
 
-      // Preflight: the middleware answers it itself (short-circuit) — the
-      // handler chain never runs. 204 because a preflight has no body.
+      // El preflight lo contesto aquí y corto, el handler no corre. 204 porque no lleva body.
       if (ctx.req.method === 'OPTIONS') {
         return new Response(null, { status: 204, headers: corsHeaders });
       }

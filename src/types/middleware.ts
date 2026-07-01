@@ -2,8 +2,8 @@ import type { EvaContext } from '../eva-context';
 
 export type EvaMiddleware = (
   ctx: EvaContext,
-  // next never returns the response: it only continues the chain. The
-  // response travels through what the middleware itself returns.
+  // next no devuelve la response, solo sigue la chain. La response viaja
+  // por lo que devuelve el propio middleware.
   next: () => Promise<void>,
 ) => void | Promise<Response | void>;
 

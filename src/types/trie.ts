@@ -1,10 +1,9 @@
 import type { Handler, RouteConfig } from './handler';
 import type { EvaMiddleware } from './middleware';
 
-// The whole schema bundle (schema + whitelist/forbid flags) must survive
-// from route registration to request time, so the trie and match result
-// carry `schemaOptions`, not just the bare schema. Indexed access keeps it
-// in sync with RouteConfig automatically.
+// El bundle de schema (schema + flags) tiene que sobrevivir del registro
+// hasta la request, por eso el trie lleva schemaOptions entero. El acceso
+// indexado lo mantiene sincronizado con RouteConfig solo.
 type SchemaOptions = RouteConfig['schemaOptions'];
 
 export interface TrieNode {

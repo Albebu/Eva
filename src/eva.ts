@@ -13,7 +13,6 @@ import {
   type TrieNode,
 } from './types';
 
-// Sin esta función siempre tengo que castear y puede dar problemas en runtime. A lo mejor dejarlo como any tampoco da muchos problemas.
 function isMethod(method: string): method is Method {
   return method in METHOD;
 }
@@ -41,18 +40,8 @@ export class Eva {
   }
 
   /**
-   * Mounts this instance's routes into `parent` under a prefix:
-   *
-   * ```ts
-   * const users = new Eva();
-   * users.get('/users/:id', handler);
-   * users.toParent(app, '/api/v1'); // -> GET /api/v1/users/:id
-   * ```
-   *
-   * Handlers, route-level middlewares and wildcard branches are all copied.
-   *
-   * TODO(design): consider inverting to Express-style `parent.mount(prefix,
-   * child)` in phase 4.
+   * TODO: Cambiar a otro patron que sea inverso para mejorar la implementación.
+   * Esta forma es extraña
    */
   toParent(parent: Eva, prefix: string = ''): void {
     for (const m of Object.values(METHOD)) {
@@ -219,7 +208,6 @@ export class Eva {
     const method = req.method;
     const path = url.pathname;
 
-    // Method validation: unknown verbs are rejected up front with 501.
     if (!isMethod(method)) {
       return new Response('Not Implemented', { status: 501 });
     }
@@ -233,9 +221,8 @@ export class Eva {
     try {
       let response: Response | undefined;
 
-      // Generic chain runner: walks `chain` and calls `tail` at the end.
-      // A middleware that returns a Response sets it — short-circuit when
-      // it skipped next(), override when it ran the chain first.
+      // Recorre la chain y al final llama a tail. Si un middleware devuelve
+      // Response la guardo: corta si se saltó next(), pisa si corrió la chain antes.
       const runChain = async (
         chain: EvaMiddleware[],
         tail: () => Promise<void>,
@@ -253,10 +240,9 @@ export class Eva {
         await run(0);
       };
 
-      // Routing is the LAST station of the global chain (Express-style):
-      // every request crosses every global middleware first, so things
-      // like CORS preflights work even for unmatched routes. This also
-      // means ctx.params is not populated yet inside global middlewares.
+      // El routing es la última parada de la chain global: toda request pasa
+      // antes por los middlewares globales, así el preflight CORS va aunque no
+      // haya ruta. Por eso ctx.params aún está vacío en los globales.
       const dispatch = async (): Promise<void> => {
         const methodToSearch: Method = method === 'HEAD' ? 'GET' : method;
         const match = this._router.match(methodToSearch, path);
@@ -265,7 +251,7 @@ export class Eva {
           const availableMethods: string[] = [];
 
           for (const m of Object.values(METHOD)) {
-            if (m === 'HEAD') continue; // derived from GET below
+            if (m === 'HEAD') continue;
             if (this._router.match(m, path)) {
               availableMethods.push(m);
             }
@@ -287,7 +273,6 @@ export class Eva {
           return;
         }
 
-        // Obtain params decoded from URI
         try {
           ctx.params = Object.fromEntries(
             Object.entries(match.params).map(([key, value]) => [

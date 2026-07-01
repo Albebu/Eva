@@ -65,10 +65,9 @@ export class Router {
 
     const segments = Router.segments(route);
 
-    // Optional params (:x?) are syntactic sugar: they desugar into one
-    // variant per valid prefix (/a/:b?/:c? -> /a, /a/:b, /a/:b/:c), and
-    // each variant goes through the normal registration path, inheriting
-    // every validation (name conflicts, duplicates...).
+    // Los :x? son azúcar. Los expando en una variante por prefijo
+    // (/a/:b?/:c? -> /a, /a/:b, /a/:b/:c) y cada una pasa por el registro
+    // normal, así hereda las validaciones.
     const isOptional = (s: string) => s.startsWith(':') && s.endsWith('?');
     const firstOptional = segments.findIndex(isOptional);
 
@@ -93,15 +92,13 @@ export class Router {
     let node = this.routes[method];
 
     for (const [i, segment] of segments.entries()) {
-      // Static segment
       if (!segment.startsWith(':') && !segment.startsWith('*')) {
         if (!node.children[segment]) {
           node.children[segment] = { children: {} };
         }
         node = node.children[segment];
       }
-      // Named param — a position can hold only ONE param name across all
-      // routes; allowing two would make extraction ambiguous.
+      // Una posición solo admite un nombre de param, si no la extracción es ambigua.
       else if (segment.startsWith(':')) {
         const name = segment.slice(1);
         if (node.param && node.param.name !== name) {
@@ -114,8 +111,7 @@ export class Router {
         }
         node = node.param.node;
       }
-      // Wildcard — only valid as the final segment; the wildcard branch is
-      // a third kind of child, symmetric with `param`.
+      // Wildcard solo al final. Es un tercer tipo de hijo, como param.
       else {
         if (i !== segments.length - 1) {
           throw new EvaConfigError(
@@ -129,7 +125,7 @@ export class Router {
       }
     }
 
-    // Fail loudly on duplicates: silently replacing a handler hides bugs.
+    // Si ya hay handler, peto. Reemplazar en silencio esconde bugs.
     if (node.handler) {
       throw new EvaConfigError(
         `Route ${route} is already registered for ${method}`,
@@ -165,17 +161,14 @@ export class Router {
     const params: Record<string, string> = {};
     const middlewares: EvaMiddleware[] = [];
 
-    // Last wildcard seen during the walk, plus the index of the first
-    // segment it would consume. If the search dead-ends deeper (in a more
-    // specific branch), it falls back to this. Because it is only recorded
-    // while segments remain to be consumed, a bare prefix (/users against
-    // /users/*) can never activate it.
+    // Guardo el último wildcard visto y desde qué segmento comería. Si la
+    // búsqueda muere más abajo tiro de este. Como solo lo guardo mientras
+    // quedan segmentos, /users contra /users/* no lo activa.
     let wildcard: { node: TrieNode; rest: number } | null = null;
 
     const resolveWildcard = (): MatchResult | null => {
       if (!wildcard?.node.handler) return null;
-      // Params and middlewares accumulated so far belong to the abandoned
-      // branch, not to the wildcard route: rebuild from scratch.
+      // Lo acumulado es de la rama que abandoné, no del wildcard. Reconstruyo.
       return {
         handler: wildcard.node.handler,
         params: { '*': segments.slice(wildcard.rest).join('/') },
@@ -194,13 +187,11 @@ export class Router {
       if (node.children[segment]) {
         node = node.children[segment];
       } else if (node.param && segment !== '') {
-        // A param never captures an empty segment: under strict matching,
-        // '/users/' must not match '/users/:id' with id = ''.
+        // Un param no coge segmento vacío: /users/ no casa con /:id con id=''.
         params[node.param.name] = segment;
         node = node.param.node;
       } else {
-        // No static child and no param: the remembered wildcard (possibly
-        // the one at this very level) is the only way out.
+        // Ni estático ni param: el wildcard guardado es la única salida.
         return resolveWildcard();
       }
 

@@ -6,16 +6,16 @@ export function serveStatic(root: string): Handler {
 
   return async (ctx) => {
     let rel = ctx.params['*'] ?? '';
-    if (rel === '' || rel.endsWith('/')) rel += 'index.html'; // dir -> index
+    if (rel === '' || rel.endsWith('/')) rel += 'index.html';
 
     const target = resolve(rootDir, rel);
 
-    // Validation that target is within rootDir
+    // Que target no se salga de rootDir (path traversal).
     if (target !== rootDir && !target.startsWith(rootDir + sep)) {
       return ctx.notFound();
     }
 
-    // Deny dotfiles
+    // Nada de dotfiles.
     if (target.split(sep).some((p) => p.startsWith('.'))) {
       return ctx.notFound();
     }

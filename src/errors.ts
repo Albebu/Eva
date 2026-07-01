@@ -1,10 +1,6 @@
-// Eva has two unrelated error families. Do not mix them:
-//
-// - EvaConfigError: developer mistakes while BUILDING the app (bad route
-//   patterns, duplicate registrations). No HTTP status — they crash at
-//   startup, on purpose, and never reach a client.
-// - EvaError and subclasses: HTTP errors thrown while HANDLING a request.
-//   Eva's error boundary serializes them to a JSON response automatically.
+// Dos familias de error que no se mezclan: EvaConfigError son fallos míos
+// montando la app (peta al arrancar, sin status HTTP); EvaError y sus hijos
+// son errores HTTP en runtime que el boundary serializa a JSON solo.
 
 /**
  * Configuration error: thrown while the app is being built (registering

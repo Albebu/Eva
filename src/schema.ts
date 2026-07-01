@@ -133,32 +133,3 @@ export function coerce(schema: SchemaNode, value: any) {
       return value;
   }
 }
-
-// const userSchema = t.object({
-//   name: t.string(),
-//   age: t.number(),
-//   isYoung: t.boolean(),
-//   legs: t.object({
-//     left: t.boolean(),
-//     right: t.boolean(),
-//   }),
-//   aliases: t.array(t.string()),
-//   smokes: t.optional(t.boolean()),
-// });
-
-// const userData = {
-//   name: 'Alex',
-//   age: 21,
-//   isYoung: false,
-//   legs: {
-//     right: true,
-//     left: true,
-//   },
-//   aliases: ['Albebu', 'Roergt'],
-//   smokess: false,
-// };
-
-// console.log(
-//   validateSchema(userSchema, userData, { whitelist: true, forbidden: false }),
-// );
-// console.log(userData);
