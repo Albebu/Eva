@@ -140,8 +140,8 @@ export class Router {
     if (config?.middlewares?.length) {
       node.middlewares = config.middlewares;
     }
-    if (config?.schema !== undefined) {
-      node.schema = config.schema;
+    if (config?.schemaOptions !== undefined) {
+      node.schemaOptions = config.schemaOptions;
     }
   }
 
@@ -180,7 +180,7 @@ export class Router {
         handler: wildcard.node.handler,
         params: { '*': segments.slice(wildcard.rest).join('/') },
         middlewares: wildcard.node.middlewares ?? [],
-        schema: wildcard.node.schema,
+        schemaOptions: wildcard.node.schemaOptions,
       };
     };
 
@@ -215,7 +215,12 @@ export class Router {
       middlewares.push(...node.middlewares);
     }
 
-    return { handler: node.handler, params, middlewares, schema: node.schema };
+    return {
+      handler: node.handler,
+      params,
+      middlewares,
+      schemaOptions: node.schemaOptions,
+    };
   }
 
   /** Exposes the raw tries. Debug/introspection only — do not mutate. */

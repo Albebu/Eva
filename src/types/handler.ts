@@ -1,3 +1,4 @@
+import { EvaForbiddenError } from '../errors';
 import type { EvaContext } from '../eva-context';
 import type { EvaMiddleware } from './middleware';
 
@@ -23,7 +24,11 @@ export type EvaSchema = unknown;
  */
 export interface RouteConfig {
   middlewares?: EvaMiddleware[];
-  schema?: EvaSchema;
+  schemaOptions?: {
+    schema: EvaSchema;
+    whitelist?: boolean;
+    EvaForbiddenError?: boolean;
+  };
 }
 
 export type Handler<T extends EvaRouteOptions = {}> = (

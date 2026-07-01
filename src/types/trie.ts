@@ -1,5 +1,11 @@
-import type { Handler, EvaSchema } from './handler';
+import type { Handler, RouteConfig } from './handler';
 import type { EvaMiddleware } from './middleware';
+
+// The whole schema bundle (schema + whitelist/forbid flags) must survive
+// from route registration to request time, so the trie and match result
+// carry `schemaOptions`, not just the bare schema. Indexed access keeps it
+// in sync with RouteConfig automatically.
+type SchemaOptions = RouteConfig['schemaOptions'];
 
 export interface TrieNode {
   handler?: Handler;
@@ -10,14 +16,14 @@ export interface TrieNode {
   wildcard?: TrieNode;
   children: Record<string, TrieNode>;
   middlewares?: EvaMiddleware[];
-  schema?: EvaSchema;
+  schemaOptions?: SchemaOptions;
 }
 
 export interface MatchResult {
   handler: Handler;
   params: Record<string, string>;
   middlewares: EvaMiddleware[];
-  schema?: EvaSchema;
+  schemaOptions?: SchemaOptions;
 }
 
 export const METHOD = {
