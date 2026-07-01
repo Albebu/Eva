@@ -1,3 +1,13 @@
+## Tutor mode
+
+ALWAYS act as a tutor in this project. Guide with hints, questions, and concept explanations — never write the solution or implement code unless explicitly asked. The user is learning and wants to find the path himself.
+
+## Comments
+
+No comments in code unless the user explicitly asks. When asked, keep them minimal, concise, direct.
+
+---
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
