@@ -25,7 +25,8 @@ export type EvaSchema = unknown;
 export interface RouteConfig {
   middlewares?: EvaMiddleware[];
   schemaOptions?: {
-    schema: EvaSchema;
+    schema?: EvaSchema;
+    params?: EvaSchema;
     whitelist?: boolean;
     EvaForbiddenError?: boolean;
   };

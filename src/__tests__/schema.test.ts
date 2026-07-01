@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'bun:test';
+import { Eva } from '../eva';
 import { t, validateSchema, type Static } from '../schema';
 
 const opts = { whitelist: false, forbidden: false };
@@ -129,5 +130,25 @@ describe('validateSchema', () => {
     const userSchema = t.object({ name: t.string(), age: t.number() });
     const u: Static<typeof userSchema> = { name: 'Alex', age: 21 };
     expect(u.name).toBe('Alex');
+  });
+});
+
+describe('params validation wiring', () => {
+  const app = new Eva();
+  app.get('/thing/:id', (ctx) => new Response(ctx.params.id), {
+    schemaOptions: { params: t.object({ id: t.string() }) },
+  });
+  app.get('/num/:id', (ctx) => new Response(ctx.params.id), {
+    schemaOptions: { params: t.object({ id: t.number() }) },
+  });
+
+  it('accepts params matching the schema', async () => {
+    const res = await app.handle(new Request('http://x/thing/42'));
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects params that fail the schema', async () => {
+    const res = await app.handle(new Request('http://x/num/42'));
+    expect(res.status).toBe(400);
   });
 });

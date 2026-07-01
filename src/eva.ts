@@ -299,19 +299,22 @@ export class Eva {
           throw new EvaBadRequestError('Malformed URL encoding');
         }
 
-        // Valida body (POST/PUT/PATCH) o query antes de los middlewares
         if (match.schemaOptions) {
           const s = match.schemaOptions;
-          const usesBody =
-            method === 'POST' || method === 'PUT' || method === 'PATCH';
-          const data = usesBody ? await ctx.json() : ctx.query;
-          if (
-            !validateSchema(s.schema, data, {
-              whitelist: s.whitelist,
-              forbidden: s.EvaForbiddenError,
-            })
-          ) {
+          const opts = {
+            whitelist: s.whitelist,
+            forbidden: s.EvaForbiddenError,
+          };
+          if (s.params && !validateSchema(s.params, ctx.params, opts)) {
             throw new EvaBadRequestError();
+          }
+          if (s.schema) {
+            const usesBody =
+              method === 'POST' || method === 'PUT' || method === 'PATCH';
+            const data = usesBody ? await ctx.json() : ctx.query;
+            if (!validateSchema(s.schema, data, opts)) {
+              throw new EvaBadRequestError();
+            }
           }
         }
 
