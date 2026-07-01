@@ -113,6 +113,22 @@ app.get('/schema/thing/:id', (ctx) => ctx.toJson({ id: ctx.params.id }), {
   schemaOptions: { params: idParams, EvaForbiddenError: true },
 });
 
+const numParams = t.object({ id: t.number() });
+
+app.get(
+  '/schema/num/:id',
+  (ctx) => ctx.toJson({ id: ctx.params.id, type: typeof ctx.params.id }),
+  { schemaOptions: { params: numParams } },
+);
+
+const pageQuery = t.object({ page: t.number(), active: t.boolean() });
+
+app.get(
+  '/schema/coerce',
+  (ctx) => ctx.toJson({ query: ctx.query }),
+  { schemaOptions: { schema: pageQuery } },
+);
+
 // | Cookies — read incoming with getCookies(), set with setCookie() |
 
 app.get('/cookies', (ctx) => {
