@@ -13,6 +13,7 @@ import {
 import type { EvaMiddleware } from './src/types';
 import { serveStatic } from './src/static';
 import { bodyLimit } from './src/body-limit';
+import { t } from './src/schema';
 
 const app = new Eva();
 
@@ -80,6 +81,30 @@ app.get('/wildcard/*', (ctx) => {
 app.post('/items', async (ctx) => {
   const body = await ctx.json();
   return ctx.toJson({ created: body }, { status: 201 });
+});
+
+// | Schema validation |
+
+const createUserSchema = t.object({
+  name: t.string(),
+  age: t.number(),
+  tags: t.array(t.string()),
+  nickname: t.optional(t.string()),
+});
+
+app.post(
+  '/schema/users',
+  async (ctx) => {
+    const body = await ctx.json();
+    return ctx.toJson({ created: body }, { status: 201 });
+  },
+  { schemaOptions: { schema: createUserSchema, EvaForbiddenError: true } },
+);
+
+const echoSchema = t.object({ q: t.string() });
+
+app.get('/schema/echo', (ctx) => ctx.toJson({ query: ctx.query }), {
+  schemaOptions: { schema: echoSchema },
 });
 
 // | Cookies — read incoming with getCookies(), set with setCookie() |
