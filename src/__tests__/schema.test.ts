@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { Eva } from '../eva';
-import { t, validateSchema, type Static } from '../schema';
+import { t, validateSchema, coerce, type Static } from '../schema';
 
 const opts = { whitelist: false, forbidden: false };
 
@@ -133,6 +133,44 @@ describe('validateSchema', () => {
   });
 });
 
+describe('coerce', () => {
+  it('casts numeric strings to numbers', () => {
+    expect(coerce(t.number(), '42')).toBe(42);
+    expect(coerce(t.number(), '3.14')).toBe(3.14);
+  });
+
+  it('leaves non-numeric strings untouched', () => {
+    expect(coerce(t.number(), 'abc')).toBe('abc');
+    expect(coerce(t.number(), '')).toBe('');
+  });
+
+  it('casts boolean strings', () => {
+    expect(coerce(t.boolean(), 'true')).toBe(true);
+    expect(coerce(t.boolean(), 'false')).toBe(false);
+    expect(coerce(t.boolean(), 'nope')).toBe('nope');
+  });
+
+  it('leaves strings as-is', () => {
+    expect(coerce(t.string(), 'hi')).toBe('hi');
+  });
+
+  it('walks object props', () => {
+    const schema = t.object({ age: t.number(), name: t.string() });
+    const data = { age: '21', name: 'Alex' };
+    coerce(schema, data);
+    expect(data).toEqual({ age: 21, name: 'Alex' });
+  });
+
+  it('walks array items', () => {
+    expect(coerce(t.array(t.number()), ['1', '2'])).toEqual([1, 2]);
+  });
+
+  it('unwraps optional and leaves undefined alone', () => {
+    expect(coerce(t.optional(t.number()), '7')).toBe(7);
+    expect(coerce(t.optional(t.number()), undefined)).toBe(undefined);
+  });
+});
+
 describe('params validation wiring', () => {
   const app = new Eva();
   app.get('/thing/:id', (ctx) => new Response(ctx.params.id), {
@@ -147,8 +185,13 @@ describe('params validation wiring', () => {
     expect(res.status).toBe(200);
   });
 
-  it('rejects params that fail the schema', async () => {
+  it('coerces a numeric param and accepts it', async () => {
     const res = await app.handle(new Request('http://x/num/42'));
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects a non-numeric param that cannot be coerced', async () => {
+    const res = await app.handle(new Request('http://x/num/abc'));
     expect(res.status).toBe(400);
   });
 });
