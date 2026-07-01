@@ -156,7 +156,7 @@ describe('coerce', () => {
 
   it('walks object props', () => {
     const schema = t.object({ age: t.number(), name: t.string() });
-    const data = { age: '21', name: 'Alex' };
+    const data: Record<string, unknown> = { age: '21', name: 'Alex' };
     coerce(schema, data);
     expect(data).toEqual({ age: 21, name: 'Alex' });
   });
