@@ -8,6 +8,14 @@ export const t = {
     ({ kind: 'optional', inner }) as unknown as TOptional<T>,
 };
 
+export type SchemaNode =
+  | { kind: 'string' }
+  | { kind: 'number' }
+  | { kind: 'boolean' }
+  | { kind: 'object'; props: Record<string, SchemaNode> }
+  | { kind: 'array'; item: SchemaNode }
+  | { kind: 'optional'; inner: SchemaNode };
+
 type TString = { kind: 'string'; _type: string };
 type TNumber = { kind: 'number'; _type: number };
 type TBoolean = { kind: 'boolean'; _type: boolean };
@@ -35,7 +43,7 @@ interface SchemaOptions {
 }
 
 export function validateSchema(
-  schema: any,
+  schema: SchemaNode,
   data: any,
   options: SchemaOptions,
 ): boolean {
@@ -88,6 +96,41 @@ export function validateSchema(
         : validateSchema(schema.inner, data, options);
     default:
       return false;
+  }
+}
+
+export function coerce(schema: SchemaNode, value: any) {
+  switch (schema.kind) {
+    case 'string':
+      return value;
+    case 'number': {
+      if (typeof value !== 'string' || value.trim() === '') return value;
+      const newValue = Number(value);
+      return Number.isNaN(newValue) ? value : newValue;
+    }
+    case 'boolean': {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      return value;
+    }
+    case 'object': {
+      for (const key in schema.props) {
+        value[key] = coerce(schema.props[key], value[key]);
+      }
+      return value;
+    }
+    case 'array': {
+      for (let i = 0; i < value?.length; i++) {
+        value[i] = coerce(schema.item, value[i]);
+      }
+      return value;
+    }
+    case 'optional':
+      if (value === undefined) return value;
+      return coerce(schema.inner, value);
+
+    default:
+      return value;
   }
 }
 

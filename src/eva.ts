@@ -1,7 +1,7 @@
 import { EvaBadRequestError, EvaError, EvaInternalServerError } from './errors';
 import { EvaContext } from './eva-context';
 import { Router } from './router';
-import { validateSchema } from './schema';
+import { coerce, validateSchema } from './schema';
 import {
   METHOD,
   type ErrorHandler,
@@ -305,13 +305,18 @@ export class Eva {
             whitelist: s.whitelist,
             forbidden: s.EvaForbiddenError,
           };
-          if (s.params && !validateSchema(s.params, ctx.params, opts)) {
-            throw new EvaBadRequestError();
+
+          if (s.params) {
+            coerce(s.params, ctx.params);
+            if (!validateSchema(s.params, ctx.params, opts)) {
+              throw new EvaBadRequestError();
+            }
           }
           if (s.schema) {
             const usesBody =
               method === 'POST' || method === 'PUT' || method === 'PATCH';
             const data = usesBody ? await ctx.json() : ctx.query;
+            if (!usesBody) coerce(s.schema, data);
             if (!validateSchema(s.schema, data, opts)) {
               throw new EvaBadRequestError();
             }

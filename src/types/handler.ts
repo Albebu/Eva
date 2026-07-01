@@ -1,21 +1,13 @@
 import { EvaForbiddenError } from '../errors';
 import type { EvaContext } from '../eva-context';
 import type { EvaMiddleware } from './middleware';
+import type { SchemaNode } from '../schema';
 
 export interface EvaRouteOptions {
   Query?: Record<string, string>;
   Params?: Record<string, string>;
   Body?: unknown;
 }
-
-/**
- * Placeholder for the not-yet-built schema validator. A route stores it
- * (POST/PUT/PATCH validate the body against it; other verbs validate the
- * query string) but it is NOT enforced at runtime yet — wiring validation
- * into `Eva.handle()` is the next step. Replace `unknown` with the real
- * schema type once the validator exists.
- */
-export type EvaSchema = unknown;
 
 /**
  * Per-route config, passed as the last argument to every verb method after
@@ -25,8 +17,8 @@ export type EvaSchema = unknown;
 export interface RouteConfig {
   middlewares?: EvaMiddleware[];
   schemaOptions?: {
-    schema?: EvaSchema;
-    params?: EvaSchema;
+    schema?: SchemaNode;
+    params?: SchemaNode;
     whitelist?: boolean;
     EvaForbiddenError?: boolean;
   };
