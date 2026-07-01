@@ -1,6 +1,7 @@
 import { EvaBadRequestError, EvaError, EvaInternalServerError } from './errors';
 import { EvaContext } from './eva-context';
 import { Router } from './router';
+import { validateSchema } from './schema';
 import {
   METHOD,
   type ErrorHandler,
@@ -12,8 +13,7 @@ import {
   type TrieNode,
 } from './types';
 
-// Sin esta función siempre tengo que castear y puede dar problemas en runtime. A lo mejor dejarlo como any tampoco da
-// muchos problemas.
+// Sin esta función siempre tengo que castear y puede dar problemas en runtime. A lo mejor dejarlo como any tampoco da muchos problemas.
 function isMethod(method: string): method is Method {
   return method in METHOD;
 }
@@ -64,7 +64,7 @@ export class Eva {
         const fullPath = prefix + (path ?? '/');
         parent._router.addRoute(method, fullPath, node.handler, {
           middlewares: node.middlewares,
-          schema: node.schema,
+          schemaOptions: node.schemaOptions,
         });
       }
       for (const [segment, child] of Object.entries(node.children)) {
@@ -114,7 +114,7 @@ export class Eva {
     return this;
   }
 
-  /** Registers a GET route. `config.schema` validates the query string. */
+  /** Registers a GET route. `config.schemaOptions.schema` validates the query. */
   get<T extends EvaRouteOptions>(
     route: string,
     handler: Handler<T>,
@@ -123,7 +123,7 @@ export class Eva {
     return this.makeRoute('GET', route, handler, config);
   }
 
-  /** Registers a POST route. `config.schema` validates the body. */
+  /** Registers a POST route. `config.schemaOptions.schema` validates the body. */
   post<T extends EvaRouteOptions>(
     route: string,
     handler: Handler<T>,
@@ -132,7 +132,7 @@ export class Eva {
     return this.makeRoute('POST', route, handler, config);
   }
 
-  /** Registers a PUT route. `config.schema` validates the body. */
+  /** Registers a PUT route. `config.schemaOptions.schema` validates the body. */
   put<T extends EvaRouteOptions>(
     route: string,
     handler: Handler<T>,
@@ -141,7 +141,7 @@ export class Eva {
     return this.makeRoute('PUT', route, handler, config);
   }
 
-  /** Registers a PATCH route. `config.schema` validates the body. */
+  /** Registers a PATCH route. `config.schemaOptions.schema` validates the body. */
   patch<T extends EvaRouteOptions>(
     route: string,
     handler: Handler<T>,
@@ -150,7 +150,7 @@ export class Eva {
     return this.makeRoute('PATCH', route, handler, config);
   }
 
-  /** Registers a DELETE route. `config.schema` validates the query string. */
+  /** Registers a DELETE route. `config.schemaOptions.schema` validates the query. */
   delete<T extends EvaRouteOptions>(
     route: string,
     handler: Handler<T>,
@@ -159,7 +159,7 @@ export class Eva {
     return this.makeRoute('DELETE', route, handler, config);
   }
 
-  /** Registers an OPTIONS route. `config.schema` validates the query string. */
+  /** Registers an OPTIONS route. `config.schemaOptions.schema` validates the query. */
   options<T extends EvaRouteOptions>(
     route: string,
     handler: Handler<T>,
@@ -176,7 +176,10 @@ export class Eva {
    * app
    *   .route('/tasks')
    *   .get(listTasks)
-   *   .post(createTask, { middlewares: [requireAuth], schema: taskSchema });
+   *   .post(createTask, {
+   *     middlewares: [requireAuth],
+   *     schemaOptions: { schema: taskSchema },
+   *   });
    * ```
    */
   route<T extends EvaRouteOptions>(route: string): RouteBuilder<T> {
@@ -259,10 +262,6 @@ export class Eva {
         const match = this._router.match(methodToSearch, path);
 
         if (!match) {
-          // Build the Allow list from every method the resource really
-          // supports. HEAD is never registered in the trie (it is served by
-          // the GET handler), so it is derived from a GET route existing
-          // rather than matched directly.
           const availableMethods: string[] = [];
 
           for (const m of Object.values(METHOD)) {
@@ -300,11 +299,21 @@ export class Eva {
           throw new EvaBadRequestError('Malformed URL encoding');
         }
 
-        // NEXT STEP: schema validation goes here. `match.schema` is carried
-        // from the route but not enforced yet — once the validator exists,
-        // validate the body (POST/PUT/PATCH) or query (other verbs) against
-        // it before running middlewares, throwing EvaBadRequestError (400)
-        // on mismatch. Remember: query is all strings → coerce before check.
+        // Valida body (POST/PUT/PATCH) o query antes de los middlewares
+        if (match.schemaOptions) {
+          const s = match.schemaOptions;
+          const usesBody =
+            method === 'POST' || method === 'PUT' || method === 'PATCH';
+          const data = usesBody ? await ctx.json() : ctx.query;
+          if (
+            !validateSchema(s.schema, data, {
+              whitelist: s.whitelist,
+              forbidden: s.EvaForbiddenError,
+            })
+          ) {
+            throw new EvaBadRequestError();
+          }
+        }
 
         await runChain(match.middlewares, async () => {
           response = await match.handler(ctx);
